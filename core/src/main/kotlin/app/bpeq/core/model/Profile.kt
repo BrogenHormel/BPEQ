@@ -1,5 +1,6 @@
 package app.bpeq.core.model
 
+import app.bpeq.core.tune.Curve
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.util.UUID
@@ -21,6 +22,8 @@ data class Profile(
     val updatedAt: Long = createdAt,
     val undo: List<Eq> = emptyList(),
     val redo: List<Eq> = emptyList(),
+    /** Measurement + target this profile was tuned for (graph overlays), if any. */
+    val tuning: Tuning? = null,
 ) {
     /** What the editor shows and what Send writes. */
     val working: Eq get() = draft ?: saved
@@ -58,3 +61,7 @@ data class Profile(
         fun fromJson(s: String): Profile = json.decodeFromString(serializer(), s)
     }
 }
+
+/** The IEM measurement and target used for auto-tuning, stored compactly (resampled, normalised). */
+@Serializable
+data class Tuning(val measurement: Curve, val target: Curve)
