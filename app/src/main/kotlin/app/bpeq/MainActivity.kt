@@ -1,55 +1,83 @@
 package app.bpeq
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import app.bpeq.data.Actions
 import app.bpeq.ui.BpeqTheme
 import app.bpeq.ui.DeviceScreen
 import app.bpeq.ui.DiagnosticsScreen
+import app.bpeq.ui.EditorScreen
+import app.bpeq.ui.LibraryScreen
+import kotlinx.coroutines.flow.MutableStateFlow
 
 enum class Tab(val label: String, val icon: ImageVector) {
+    EDITOR("EQ", Icons.Filled.Edit),
+    LIBRARY("Library", Icons.Filled.List),
     DEVICE("Device", Icons.Filled.Settings),
-    DIAGNOSTICS("Diagnostics", Icons.Filled.Info),
+    DIAGNOSTICS("Log", Icons.Filled.Info),
 }
 
 class MainActivity : ComponentActivity() {
+    /** Tab requested from outside Compose (e.g. after an import intent). */
+    private val requestedTab = MutableStateFlow<Tab?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        BpeqApp.instance.devices.onAttachIntent(intent)
+        if (savedInstanceState == null) handle(intent)
         setContent {
             BpeqTheme {
-                var tab by rememberSaveable { mutableStateOf(Tab.DEVICE) }
+                var tab by rememberSaveable { mutableStateOf(Tab.EDITOR) }
+                val snackbar = remember { SnackbarHostState() }
+                LaunchedEffect(Unit) { requestedTab.collect { t -> if (t != null) { tab = t; requestedTab.value = null } } }
+                LaunchedEffect(Unit) {
+                    BpeqApp.instance.messages.flow.collect { m ->
+                        val r = snackbar.showSnackbar(m.text, m.actionLabel, withDismissAction = m.actionLabel == null,
+                            duration = if (m.actionLabel != null) SnackbarDuration.Long else SnackbarDuration.Short)
+                        if (r == SnackbarResult.ActionPerformed) m.action?.invoke()
+                    }
+                }
                 Scaffold(
+                    snackbarHost = { SnackbarHost(snackbar) },
                     bottomBar = {
                         NavigationBar {
                             Tab.entries.forEach { t ->
-                                NavigationBarItem(
-                                    selected = tab == t, onClick = { tab = t },
-                                    icon = { Icon(t.icon, contentDescription = null) }, label = { Text(t.label) },
-                                )
+                                NavigationBarItem(selected = tab == t, onClick = { tab = t },
+                                    icon = { Icon(t.icon, contentDescription = null) }, label = { Text(t.label) })
                             }
                         }
                     },
                 ) { pad ->
                     val m = Modifier.padding(pad)
                     when (tab) {
+                        Tab.EDITOR -> EditorScreen(m, onOpenLibrary = { tab = Tab.LIBRARY })
+                        Tab.LIBRARY -> LibraryScreen(m, onOpen = { tab = Tab.EDITOR })
                         Tab.DEVICE -> DeviceScreen(m, onOpenDiagnostics = { tab = Tab.DIAGNOSTICS })
                         Tab.DIAGNOSTICS -> DiagnosticsScreen(m)
                     }
@@ -58,9 +86,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onNewIntent(intent: android.content.Intent) {
+    private fun handle(intent: Intent?) {
+        BpeqApp.instance.devices.onAttachIntent(intent ?: return)
+        if (Actions.handleIntent(this, intent)) requestedTab.value = Tab.EDITOR
+    }
+
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        BpeqApp.instance.devices.onAttachIntent(intent)
+        handle(intent)
     }
 
     override fun onResume() {

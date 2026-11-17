@@ -9,10 +9,11 @@ case "$1" in
   tap)
     xy=$(dump | python3 -I -c "
 import sys,re,xml.etree.ElementTree as ET
-t=sys.argv[1]; root=ET.fromstring(sys.stdin.read())
-for n in root.iter('node'):
-  if t in (n.get('text') or '') or t in (n.get('content-desc') or ''):
-    a,b,c,d=map(int,re.findall(r'\d+',n.get('bounds'))); print((a+c)//2,(b+d)//2); break
+t=sys.argv[1]; nodes=list(ET.fromstring(sys.stdin.read()).iter('node'))
+lab=lambda n:(n.get('text') or '', n.get('content-desc') or '')
+m=[n for n in nodes if t in lab(n)] or [n for n in nodes if any(t in x for x in lab(n))]
+if m:
+  a,b,c,d=map(int,re.findall(r'\d+',m[0].get('bounds'))); print((a+c)//2,(b+d)//2)
 " "$2")
     [ -n "$xy" ] || { echo "not found: $2"; exit 1; }
     $ADB shell input tap $xy ;;

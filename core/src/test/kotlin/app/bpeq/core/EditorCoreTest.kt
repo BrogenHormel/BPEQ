@@ -154,3 +154,18 @@ class ProfileHistoryTest {
         assertEquals(p, back)
     }
 }
+
+class FromDeviceTest {
+    @Test
+    fun `device state becomes an editable eq that plans back to the same registers`() {
+        val sim = app.bpeq.core.device.SimulatedDongle()
+        val sess = app.bpeq.core.device.MaxSession(sim, app.bpeq.core.device.DeviceLog.NONE, sleep = {}, replyTimeoutMs = 20)
+        sess.write(app.bpeq.core.device.TestPlans.audibleCut(), 0x01, commit = true)
+        val state = sess.readState()
+        val eq = Planner.eqFromDevice(state)
+        assertEquals(3, eq.bands.size)
+        assertEquals(-1.0, eq.manualPreampDb)
+        assertTrue(Planner.matchesDevice(eq, state))
+        assertTrue(Planner.eqFromDevice(sess.also { sess.write(app.bpeq.core.device.TestPlans.flat(), 0x01, true) }.readState()).bands.isEmpty())
+    }
+}

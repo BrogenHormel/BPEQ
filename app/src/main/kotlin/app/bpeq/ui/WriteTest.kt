@@ -45,7 +45,7 @@ import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
 
-private data class PendingWrite(val label: String, val plan: WritePlan, val slot: Int)
+data class PendingWrite(val label: String, val plan: WritePlan, val slot: Int)
 
 /** Milestone-3 hardware write test: read, send a known test EQ, restore, reset. */
 @Composable
@@ -123,7 +123,7 @@ fun WriteTestCard(status: DeviceStatus) {
 }
 
 @Composable
-private fun WritePreviewDialog(p: PendingWrite, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+fun WritePreviewDialog(p: PendingWrite, onDismiss: () -> Unit, onConfirm: () -> Unit) {
     val phase1 = MaxSession.registerSteps(p.plan, p.slot)
     val phase2 = MaxSession.commitSteps()
     AlertDialog(

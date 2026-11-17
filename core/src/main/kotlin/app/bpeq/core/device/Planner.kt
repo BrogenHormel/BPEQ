@@ -90,6 +90,16 @@ object Planner {
         return out
     }
 
+    /**
+     * What's on the device as an editable EQ: every slot that isn't a 0 dB peak becomes a band (0 dB peaks do
+     * nothing, so spare/flat slots are left out), preamp as a manual value.
+     */
+    fun eqFromDevice(state: DeviceState): Eq {
+        val bands = state.bands.filter { !it.disabled && it.registers.type != null && !it.registers.isZeroGainPeak }
+            .map { MaxLimits.toBand(it.registers) }
+        return Eq(bands, PreampMode.MANUAL, state.preampDb.toDouble())
+    }
+
     /** True if the device registers/preamp in [state] are exactly what [eq] would write. */
     fun matchesDevice(eq: Eq, state: DeviceState): Boolean {
         val p = plan(eq)

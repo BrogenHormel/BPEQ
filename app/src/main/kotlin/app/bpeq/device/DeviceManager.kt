@@ -18,7 +18,11 @@ import app.bpeq.core.device.HidChannel
 import app.bpeq.core.device.MaxSession
 import app.bpeq.core.device.SelfTest
 import app.bpeq.core.device.SimulatedDongle
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -78,6 +82,8 @@ class DeviceManager(private val context: Context, val log: AppLog) {
     val lastWrite: StateFlow<WriteOutcome?> = _lastWrite.asStateFlow()
 
     @Volatile private var busy: String? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var autoReadFor: String? = null
     @Volatile private var denied = false
     private var knownDevice: String? = null
 
@@ -126,7 +132,12 @@ class DeviceManager(private val context: Context, val log: AppLog) {
     /** Recomputes [status] from the current USB state (cheap; no I/O). */
     fun refreshStatus() {
         busy?.let { _status.value = DeviceStatus.Busy(it); return }
-        if (_simulate.value) { _status.value = DeviceStatus.Simulated; return }
+        if (_simulate.value) {
+            _status.value = DeviceStatus.Simulated
+            if (autoReadFor != SIM) { autoReadFor = SIM; scope.launch { read() } }
+            return
+        }
+        if (autoReadFor == SIM) { autoReadFor = null; _lastState.value = null }
         val d = findDevice()
         if (d?.deviceName != knownDevice) {
             knownDevice = d?.deviceName
@@ -137,6 +148,12 @@ class DeviceManager(private val context: Context, val log: AppLog) {
             usb.hasPermission(d) -> DeviceStatus.Ready(d.productName ?: "Protocol Max")
             denied -> DeviceStatus.PermissionDenied
             else -> DeviceStatus.NeedsPermission
+        }
+        if (d == null) { autoReadFor = null; _lastState.value = null }
+        // Read-only read once per connection, so the app knows what's on the dongle.
+        if (d != null && usb.hasPermission(d) && autoReadFor != d.deviceName) {
+            autoReadFor = d.deviceName
+            scope.launch { read() }
         }
     }
 
@@ -244,6 +261,7 @@ class DeviceManager(private val context: Context, val log: AppLog) {
 
     companion object {
         const val ACTION_PERMISSION = "app.bpeq.USB_PERMISSION"
+        private const val SIM = "simulator"
         private const val KEY_ORIGINAL = "original_backup"
         private const val KEY_FIRST_WRITE = "first_write_done"
 
