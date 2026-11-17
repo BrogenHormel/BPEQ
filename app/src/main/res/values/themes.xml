@@ -1,0 +1,10 @@
+<resources>
+    <style name="Theme.Bpeq" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+    <color name="bg">#FF0E1014</color>
+    <color name="icon_bg">#FF14181F</color>
+    <color name="icon_fg">#FF8AB4FF</color>
+</resources>
