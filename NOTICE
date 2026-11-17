@@ -1,0 +1,15 @@
+BPEQ - parametric EQ for the CrinEar Protocol Max
+Copyright 2026 the BPEQ authors
+
+This product includes:
+
+- The WalkPlay HID PEQ protocol and biquad coefficient maths, adapted from Contour
+  (https://github.com/Iwakura9/contour), licensed under the Apache License, Version 2.0, which ported them from
+  devicePEQ (https://github.com/jeromeof/devicePEQ, commit 0617f382), Copyright 2024 Jerome O'Flaherty, 0BSD.
+  The Equalizer APO / AutoEQ text importer is also adapted from Contour.
+- Test fixtures: Protocol Max USB captures from devicePEQ (0BSD), core/src/test/resources/captures/.
+- Target curves from the AutoEQ project (https://github.com/jaakkopasanen/AutoEq),
+  Copyright (c) 2018-2022 Jaakko Pasanen, MIT License (core/src/main/resources/targets/LICENSE-AutoEq.txt).
+
+CrinEar, Protocol Max, WalkPlay, Harman and all other product names are trademarks of their owners.
+BPEQ is unofficial and not affiliated with or endorsed by any of them.
