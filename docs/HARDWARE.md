@@ -23,5 +23,13 @@ Unit: CrinEar Protocol Max, USB 3302:43CC, firmware **1.4**, on a moto g stylus 
   the test EQ and preamp -1 dB survived unplug/replug. A very faint click on save.
 - 10+ write/verify/commit cycles, all verified, no failures.
 
+## A/B test (2026-11-17, BPEQ 0.6.0)
+- Band writes + preamp + TEMP_WRITE (`01 0A 04 00 00 FF FF`) **without** the flash command (`01 01 01`): the EQ
+  applied live (flat, preamp kept) **and was still there after unplug/replug**. On this firmware a temporary write is
+  not RAM-only (unlike the Protocol Micro, where Contour proved TEMP_WRITE is lost on replug).
+- So A/B stays **off**: switching through this path would write the flash on every toggle. The app restored the
+  profile with a normal verified write.
+
 ## Open
-- Whether band writes + TEMP_WRITE (`01 0A`) alone apply live without flash (A/B, feature 11).
+- Whether bare band/preamp writes (no TEMP_WRITE, no commit) also persist across a replug. Only relevant if a
+  verify ever fails: BPEQ then sends no commit, but the registers may still hold the new values.
