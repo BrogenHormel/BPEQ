@@ -74,6 +74,10 @@ fun DeviceScreen(modifier: Modifier = Modifier, onOpenDiagnostics: () -> Unit) {
 
         report?.let { SelfTestCard(it) }
 
+        SettingsCard()
+
+        AbTestCard(status)
+
         WriteTestCard(status)
 
         Button(onClick = onOpenDiagnostics, modifier = Modifier.fillMaxWidth()) { Text("Open diagnostics log") }

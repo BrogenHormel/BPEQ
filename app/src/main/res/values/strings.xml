@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">BPEQ</string>
+    <string name="widget_description">Apply a favorite EQ profile to the Protocol Max with one tap</string>
+    <string name="tile_label">BPEQ profile</string>
 </resources>

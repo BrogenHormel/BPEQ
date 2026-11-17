@@ -47,6 +47,7 @@ import app.bpeq.BpeqApp
 import app.bpeq.core.device.MaxLimits
 import app.bpeq.core.device.Planner
 import app.bpeq.core.tune.Rebuild
+import app.bpeq.core.tune.ToneBlend
 import androidx.compose.runtime.saveable.rememberSaveable
 import app.bpeq.core.model.Band
 import app.bpeq.core.model.FilterType
@@ -68,6 +69,7 @@ fun EditorScreen(modifier: Modifier = Modifier, onOpenLibrary: () -> Unit) {
     val profile = profiles.firstOrNull { it.id == currentId } ?: return
     val eq = profile.working
     val selected by ed.selected.collectAsState()
+    val compareId by ed.compareWith.collectAsState()
     val plan = remember(eq) { Planner.plan(eq) }
     var ov by rememberSaveable(stateSaver = OverlaySaver) { mutableStateOf(OverlaySet()) }
     var rebuild by remember { mutableStateOf<Rebuild.Result?>(null) }
@@ -76,7 +78,9 @@ fun EditorScreen(modifier: Modifier = Modifier, onOpenLibrary: () -> Unit) {
     Column(modifier.fillMaxSize()) {
         // Header: profile name (tap: library), undo/redo, save
         Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f).clickable(onClick = onOpenLibrary)) {
+            var switcher by remember { mutableStateOf(false) }
+            Column(Modifier.weight(1f).clickable { switcher = true }) {
+                QuickSwitcher(switcher, profile, onDismiss = { switcher = false }, onOpenLibrary = onOpenLibrary)
                 Text(profile.name, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(if (profile.dirty) "Unsaved changes" else "Saved" + if (profile.iem.isNotBlank()) " · ${profile.iem}" else "",
                     style = MaterialTheme.typography.labelSmall,
@@ -92,7 +96,8 @@ fun EditorScreen(modifier: Modifier = Modifier, onOpenLibrary: () -> Unit) {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                     ResponseGraph(
                         eq, selected, Modifier.fillMaxWidth().height(230.dp).padding(6.dp),
-                        overlays = overlaysFor(eq, plan, profile.tuning, ov),
+                        overlays = overlaysFor(eq, plan, profile.tuning, ov) + compareOverlay(compareId, profile.id),
+                        totalBands = if (eq.tone.isZero) null else remember(eq) { ToneBlend.apply(eq).bands },
                         onSelect = ed::select,
                         onDragStart = ed::beginDrag,
                         onDrag = { id, f, g -> ed.dragBand(id) { it.copy(freqHz = MaxLimits.clampFreq(f), gainDb = MaxLimits.clampGain(g)) } },
@@ -100,10 +105,12 @@ fun EditorScreen(modifier: Modifier = Modifier, onOpenLibrary: () -> Unit) {
                         onDragEnd = ed::endDrag,
                     )
                     OverlayChips(ov, profile.tuning != null) { ov = it }
+                    CompareChip(compareId)
                 }
             }
             if (!plan.ok || plan.clampNotes.isNotEmpty()) item { IssuesCard(plan.issues, plan.clampNotes, if (plan.unstorable.isNotEmpty()) ({ rebuild = Rebuild.rebuild(eq) }) else null) }
             item { PreampCard(eq.preampMode, eq.manualPreampDb, plan.preampDb) }
+            item { ToneCard(eq.tone) }
             itemsIndexed(eq.bands, key = { _, b -> b.id }) { i, b ->
                 BandCard(i, b, b.id == selected, plan.unstorable.any { it.bandIndex == i })
             }
@@ -240,6 +247,7 @@ fun SendBar(profileId: String, canSend: Boolean) {
             if (status == DeviceStatus.NeedsPermission || status == DeviceStatus.PermissionDenied) {
                 FilledTonalButton(onClick = { app.devices.requestPermission() }) { Text("Allow USB") }
             } else {
+                AbButton(profile, matches)
                 Button(
                     onClick = {
                         val plan = Planner.plan(profile.working).plan ?: run { scope.launch { app.editor.send() }; return@Button }

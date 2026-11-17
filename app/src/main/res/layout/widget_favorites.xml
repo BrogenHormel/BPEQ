@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="10dp" android:background="@drawable/widget_bg">
+    <TextView android:id="@+id/title" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="BPEQ favorites" android:textColor="#FF8AB4FF" android:textSize="13sp" android:textStyle="bold"
+        android:paddingBottom="6dp" />
+    <TextView android:id="@+id/empty" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="Star profiles in the BPEQ library to show them here." android:textColor="#FFB7BDC9" android:textSize="12sp" />
+    <TextView android:id="@+id/fav1" style="@style/WidgetButton" />
+    <TextView android:id="@+id/fav2" style="@style/WidgetButton" />
+    <TextView android:id="@+id/fav3" style="@style/WidgetButton" />
+    <TextView android:id="@+id/fav4" style="@style/WidgetButton" />
+</LinearLayout>

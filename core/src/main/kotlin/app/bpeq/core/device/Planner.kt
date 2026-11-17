@@ -51,7 +51,8 @@ object Planner {
         return if (peak <= 1e-6) 0 else -ceil(peak - 1e-6).toInt()
     }
 
-    fun plan(eq: Eq): Result {
+    fun plan(input: Eq): Result {
+        val eq = app.bpeq.core.tune.ToneBlend.apply(input)
         val enabled = eq.bands.withIndex().filter { it.value.enabled }
         val tooMany = enabled.size > MaxLimits.BANDS
         val used = enabled.take(MaxLimits.BANDS)

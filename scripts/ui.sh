@@ -6,14 +6,16 @@
 ADB=${ADB:-$HOME/Android/Sdk/platform-tools/adb}
 dump() { $ADB shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; $ADB shell cat /sdcard/ui.xml; }
 case "$1" in
-  tap)
-    xy=$(dump | python3 -I -c "
+  tap|tap-last)
+    xy=$(dump | LAST=$([ "$1" = tap-last ] && echo 1) python3 -I -c "
 import sys,re,xml.etree.ElementTree as ET
 t=sys.argv[1]; nodes=list(ET.fromstring(sys.stdin.read()).iter('node'))
 lab=lambda n:(n.get('text') or '', n.get('content-desc') or '')
 m=[n for n in nodes if t in lab(n)] or [n for n in nodes if any(t in x for x in lab(n))]
+import os
 if m:
-  a,b,c,d=map(int,re.findall(r'\d+',m[0].get('bounds'))); print((a+c)//2,(b+d)//2)
+  n=m[-1] if os.environ.get('LAST') else m[0]
+  a,b,c,d=map(int,re.findall(r'\d+',n.get('bounds'))); print((a+c)//2,(b+d)//2)
 " "$2")
     [ -n "$xy" ] || { echo "not found: $2"; exit 1; }
     $ADB shell input tap $xy ;;

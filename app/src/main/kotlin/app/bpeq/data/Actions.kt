@@ -10,6 +10,8 @@ import app.bpeq.BpeqApp
 import app.bpeq.core.device.Planner
 import app.bpeq.core.io.ApoText
 import app.bpeq.core.io.EqImport
+import app.bpeq.core.io.LibraryBackup
+import app.bpeq.core.tune.ToneBlend
 import app.bpeq.core.model.Eq
 import app.bpeq.core.model.Profile
 import java.io.File
@@ -89,7 +91,19 @@ object Actions {
     }
 
     /** The Equalizer APO / Peace text of [p] (working copy, with the preamp the device would use). */
-    fun apoText(p: Profile): String = ApoText.format(p.working.bands, Planner.plan(p.working).preampDb.toDouble())
+    fun apoText(p: Profile): String =
+        ApoText.format(ToneBlend.apply(p.working).bands, Planner.plan(p.working).preampDb.toDouble())
+
+    fun backupJson(): String = LibraryBackup(profiles = BpeqApp.instance.library.profiles.value.map { it.copy(undo = emptyList(), redo = emptyList()) }).toJson()
+
+    fun restoreBackup(ctx: Context, uri: Uri) {
+        runCatching {
+            val text = ctx.contentResolver.openInputStream(uri)!!.use { it.bufferedReader().readText() }
+            val b = LibraryBackup.fromJson(text)
+            val n = BpeqApp.instance.library.importAll(b.profiles)
+            BpeqApp.instance.messages.show("Restored $n profile(s) from the backup (${b.profiles.size - n} already in the library)")
+        }.onFailure { BpeqApp.instance.messages.show("Restore failed: ${it.message}") }
+    }
 
     fun fileName(p: Profile): String =
         p.name.replace(Regex("""[\\/:*?"<>|\u0000-\u001f]"""), " ").trim().ifEmpty { "Profile" } + " ParametricEQ.txt"

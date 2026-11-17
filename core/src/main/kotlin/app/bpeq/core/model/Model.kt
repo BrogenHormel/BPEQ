@@ -49,14 +49,26 @@ data class Eq(
     val preampMode: PreampMode = PreampMode.AUTO,
     /** Used when [preampMode] is MANUAL. Whole dB on the device; stored as entered. */
     val manualPreampDb: Double = 0.0,
+    /** Tone sliders blended on top of the bands (see app.bpeq.core.tune.ToneBlend). */
+    val tone: Tone = Tone(),
 ) {
     val activeBands: List<Band> get() = bands.filter { it.enabled }
 
     fun sameSettings(other: Eq): Boolean =
-        preampMode == other.preampMode && manualPreampDb == other.manualPreampDb &&
+        preampMode == other.preampMode && manualPreampDb == other.manualPreampDb && tone == other.tone &&
             bands.size == other.bands.size && bands.indices.all { bands[it].sameSettings(other.bands[it]) }
 
     companion object {
         val FLAT = Eq()
+    }
+}
+
+/** Quick tone controls, in dB: bass shelf, gentle treble tilt, ear-gain (presence) region. */
+@Serializable
+data class Tone(val bassDb: Double = 0.0, val trebleDb: Double = 0.0, val earGainDb: Double = 0.0) {
+    val isZero: Boolean get() = bassDb == 0.0 && trebleDb == 0.0 && earGainDb == 0.0
+
+    companion object {
+        const val RANGE = 6.0
     }
 }

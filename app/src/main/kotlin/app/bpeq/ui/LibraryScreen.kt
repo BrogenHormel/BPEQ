@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.FilterChip
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -48,6 +51,7 @@ import app.bpeq.BpeqApp
 import app.bpeq.core.device.Planner
 import app.bpeq.core.model.Profile
 import app.bpeq.data.Actions
+import app.bpeq.data.Applier
 import kotlinx.coroutines.launch
 
 @Composable
@@ -63,6 +67,16 @@ fun LibraryScreen(modifier: Modifier = Modifier, onOpen: () -> Unit) {
     var newMenu by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf<Profile?>(null) }
     var exporting by remember { mutableStateOf<Profile?>(null) }
+    var iemFilter by remember { mutableStateOf<String?>(null) }
+    var topMenu by remember { mutableStateOf(false) }
+    val backupSave = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) Actions.writeTo(ctx, uri, Actions.backupJson())
+    }
+    val backupOpen = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) Actions.restoreBackup(ctx, uri)
+    }
+    val iems = profiles.map { it.iem }.filter { it.isNotBlank() }.distinct().sorted()
+    val shown = profiles.filter { iemFilter == null || it.iem == iemFilter }.sortedWith(compareByDescending<Profile> { it.favorite }.thenBy { it.name.lowercase() })
 
     val openFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null && Actions.importUri(ctx, uri).let { true }) onOpen()
@@ -79,12 +93,29 @@ fun LibraryScreen(modifier: Modifier = Modifier, onOpen: () -> Unit) {
     Box(modifier.fillMaxSize()) {
         LazyColumn(contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
-                Text("Library", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Library", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f).padding(start = 4.dp, bottom = 4.dp))
+                    Box {
+                        IconButton({ topMenu = true }) { Icon(Icons.Filled.MoreVert, "Library menu") }
+                        DropdownMenu(topMenu, { topMenu = false }) {
+                            DropdownMenuItem({ Text("Back up whole library\u2026") }, { topMenu = false; backupSave.launch("BPEQ library.json") })
+                            DropdownMenuItem({ Text("Restore from backup\u2026") }, { topMenu = false; backupOpen.launch(arrayOf("application/json", "application/octet-stream", "text/*")) })
+                        }
+                    }
+                }
+                if (iems.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(iemFilter == null, { iemFilter = null }, label = { Text("All") })
+                    iems.forEach { i -> FilterChip(iemFilter == i, { iemFilter = if (iemFilter == i) null else i }, label = { Text(i) }) }
+                }
             }
-            items(profiles, key = { it.id }) { p ->
+            items(shown, key = { it.id }) { p ->
                 ProfileRow(
                     p, current = p.id == currentId, onDevice = isOnDevice(p),
                     onClick = { app.library.select(p.id); app.editor.select(null); onOpen() },
+                    onFavorite = { app.library.toggleFavorite(p.id) },
+                    onCompare = { app.editor.compare(p.id); app.messages.show("Comparing with \u201c${p.name}\u201d on the EQ graph"); onOpen() },
+                    onApply = { scope.launch { Applier.apply(p.id) } },
+                    canApply = status.canTalk,
                     onRename = { renaming = p },
                     onDuplicate = { app.library.duplicate(p.id)?.let { app.messages.show("Duplicated as “${it.name}”") } },
                     onShare = { Actions.share(ctx, p) },
@@ -133,7 +164,7 @@ private fun clip(ctx: android.content.Context): String? {
 @Composable
 private fun ProfileRow(
     p: Profile, current: Boolean, onDevice: Boolean,
-    onClick: () -> Unit, onRename: () -> Unit, onDuplicate: () -> Unit, onShare: () -> Unit, onSave: () -> Unit, onDelete: () -> Unit,
+    onClick: () -> Unit, onFavorite: () -> Unit, onCompare: () -> Unit, onApply: () -> Unit, canApply: Boolean, onRename: () -> Unit, onDuplicate: () -> Unit, onShare: () -> Unit, onSave: () -> Unit, onDelete: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
     Card(
@@ -156,9 +187,13 @@ private fun ProfileRow(
                     AssistChip(onClick = {}, label = { Text("On device") }, modifier = Modifier.height(26.dp))
                 }
             }
+            IconButton(onFavorite) { Text(if (p.favorite) "\u2605" else "\u2606", style = MaterialTheme.typography.titleLarge,
+                color = if (p.favorite) Palette.warm else MaterialTheme.colorScheme.onSurfaceVariant) }
             Box {
                 IconButton({ menu = true }) { Icon(Icons.Filled.MoreVert, "More") }
                 DropdownMenu(menu, { menu = false }) {
+                    DropdownMenuItem({ Text("Apply saved version to device") }, { menu = false; onApply() }, enabled = canApply)
+                    DropdownMenuItem({ Text("Compare with current on graph") }, { menu = false; onCompare() }, enabled = !current)
                     DropdownMenuItem({ Text("Rename / IEM") }, { menu = false; onRename() })
                     DropdownMenuItem({ Text("Duplicate") }, { menu = false; onDuplicate() })
                     DropdownMenuItem({ Text("Share as APO / Peace text") }, { menu = false; onShare() })

@@ -51,9 +51,11 @@ fun ResponseGraph(
     /** Minimal drawing (curve + zero line), for thumbnails. */
     compact: Boolean = !interactive,
     showNodes: Boolean = true,
+    /** Bands for the combined curve if they differ from the nodes (e.g. with tone sliders blended in). */
+    totalBands: List<Band>? = null,
 ) {
     val grid = FreqGrid.DISPLAY
-    val total = remember(eq.bands) { Response.ideal(eq.bands, grid) }
+    val total = remember(eq.bands, totalBands) { Response.ideal(totalBands ?: eq.bands, grid) }
     val selBand = eq.bands.firstOrNull { it.id == selectedId }
     val selCurve = remember(selBand) { selBand?.let { Response.band(it, grid) } }
     val bands by rememberUpdatedState(eq.bands)

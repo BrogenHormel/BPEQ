@@ -30,6 +30,18 @@ class BpeqApp : Application() {
         library = Library(this)
         editor = Editor(library, devices, messages)
         tune = TuneSession(library, messages)
+        devices.onConnectedRead = ::offerApplyOnPlugIn
+    }
+
+    /** Feature 10: on plug-in, one tap to apply the last profile (or confirm it is already there). */
+    private fun offerApplyOnPlugIn(state: app.bpeq.core.device.DeviceState) {
+        app.bpeq.data.Applier.resetAb()
+        val prefs = getSharedPreferences("settings", MODE_PRIVATE)
+        if (!prefs.getBoolean("plugin_prompt", true)) return
+        val match = library.profiles.value.firstOrNull { app.bpeq.core.device.Planner.matchesDevice(it.saved, state) }
+        if (match != null) { messages.show("Protocol Max connected \u00b7 \u201c${match.name}\u201d is on it"); return }
+        val last = library.onDevice.value?.first?.let(library::get) ?: library.current() ?: return
+        messages.show("Protocol Max connected. Apply \u201c${last.name}\u201d?", "Apply") { app.bpeq.data.Applier.applyInBackground(last.id) }
     }
 
     companion object {

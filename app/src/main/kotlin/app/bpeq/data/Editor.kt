@@ -32,6 +32,11 @@ class Editor(val library: Library, val devices: DeviceManager, val messages: Mes
 
     private var dragStart: Eq? = null
 
+    private val _compareWith = MutableStateFlow<String?>(null)
+    /** Another profile overlaid on the graph for comparison (feature 12). */
+    val compareWith: StateFlow<String?> = _compareWith.asStateFlow()
+    fun compare(id: String?) { _compareWith.value = id }
+
     private val id: String? get() = library.currentId.value
 
     fun select(bandId: Long?) { _selected.value = bandId }
@@ -84,6 +89,7 @@ class Editor(val library: Library, val devices: DeviceManager, val messages: Mes
         val plan = r.plan ?: run { messages.show(r.issues.firstOrNull() ?: "Can't send this EQ."); return null }
         val out = devices.write(plan, devices.lastState.value?.slot, p.name)
         if (out.ok) {
+            Applier.resetAb()
             library.markOnDevice(p.id, p.working)
             messages.show("“${p.name}” is on the dongle")
         } else messages.show("Send failed: ${out.lines.firstOrNull() ?: ""}")

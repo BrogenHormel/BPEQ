@@ -18,7 +18,7 @@ import java.io.File
  * The profile library: one JSON file per profile (saved version, working copy and undo history together),
  * written atomically and debounced so dragging never blocks on disk.
  */
-class Library(context: Context) {
+class Library(private val context: Context) {
     private val dir = File(context.filesDir, "profiles").apply { mkdirs() }
     private val prefs = context.getSharedPreferences("library", Context.MODE_PRIVATE)
     private val io = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -52,8 +52,16 @@ class Library(context: Context) {
         prefs.edit().putString(KEY_CURRENT, id).apply()
     }
 
+    private fun widgetKey(list: List<Profile>) = list.filter { it.favorite }.map { it.id to it.name }
+
+    private fun refreshWidget(before: List<Profile>) {
+        if (widgetKey(before) != widgetKey(_profiles.value)) app.bpeq.widget.FavoritesWidget.updateAll(context)
+    }
+
     private fun put(p: Profile, debounceMs: Long = 0) {
+        val before = _profiles.value
         _profiles.value = (_profiles.value.filterNot { it.id == p.id } + p).sortedBy { it.name.lowercase() }
+        refreshWidget(before)
         pending.remove(p.id)?.cancel()
         pending[p.id] = io.launch {
             if (debounceMs > 0) delay(debounceMs)
@@ -95,7 +103,9 @@ class Library(context: Context) {
     fun delete(id: String): Profile? {
         val p = get(id) ?: return null
         pending.remove(id)?.cancel()
+        val before = _profiles.value
         _profiles.value = _profiles.value.filterNot { it.id == id }
+        refreshWidget(before)
         io.launch { File(dir, "$id.json").delete() }
         if (_currentId.value == id) {
             val next = _profiles.value.firstOrNull() ?: create("My first profile", Eq.FLAT)
@@ -106,8 +116,18 @@ class Library(context: Context) {
 
     fun restore(p: Profile) = put(p)
 
+    fun toggleFavorite(id: String) = update(id, 0) { it.copy(favorite = !it.favorite) }
+
+    /** Adds every profile from a backup (never overwriting; see LibraryBackup.merge). Returns how many were added. */
+    fun importAll(incoming: List<Profile>): Int {
+        val added = app.bpeq.core.io.LibraryBackup.merge(_profiles.value, incoming)
+        added.forEach { put(it) }
+        return added.size
+    }
+
     fun markOnDevice(id: String, eq: Eq) {
         _onDevice.value = id to eq
+        app.bpeq.widget.FavoritesWidget.updateAll(context)
         prefs.edit().putString(KEY_ON_DEVICE_ID, id).putString(KEY_ON_DEVICE_EQ, Profile(id = id, name = "", saved = eq).toJson()).apply()
     }
 
