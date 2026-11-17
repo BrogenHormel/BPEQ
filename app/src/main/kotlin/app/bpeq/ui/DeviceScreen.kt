@@ -76,8 +76,6 @@ fun DeviceScreen(modifier: Modifier = Modifier, onOpenDiagnostics: () -> Unit) {
 
         SettingsCard()
 
-        AbTestCard(status)
-
         WriteTestCard(status)
 
         AboutCard()

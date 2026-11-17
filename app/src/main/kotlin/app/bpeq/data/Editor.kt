@@ -89,7 +89,6 @@ class Editor(val library: Library, val devices: DeviceManager, val messages: Mes
         val plan = r.plan ?: run { messages.show(r.issues.firstOrNull() ?: "Can't send this EQ."); return null }
         val out = devices.write(plan, devices.lastState.value?.slot, p.name)
         if (out.ok) {
-            Applier.resetAb()
             library.markOnDevice(p.id, p.working)
             messages.show("“${p.name}” is on the dongle")
         } else messages.show("Send failed: ${out.lines.firstOrNull() ?: ""}")

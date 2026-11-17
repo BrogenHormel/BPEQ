@@ -109,17 +109,3 @@ fun CompareChip(compareId: String?) {
             modifier = Modifier.height(30.dp))
     }
 }
-
-/** A/B toggle (feature 11), only when the hardware test proved RAM-only writes and this profile is on the dongle. */
-@Composable
-fun AbButton(profile: Profile, onDevice: Boolean) {
-    val app = BpeqApp.instance
-    val verdict by app.devices.abVerdict.collectAsState()
-    val flat by Applier.abFlat.collectAsState()
-    val scope = rememberCoroutineScope()
-    if (verdict != DeviceManager.AbVerdict.RAM_ONLY || !(onDevice || flat)) return
-    OutlinedButton(onClick = { scope.launch { Applier.toggleAb(profile.saved) } }, modifier = Modifier.padding(end = 8.dp)) {
-        Text(if (flat) "B: EQ off" else "A/B")
-    }
-    Spacer(Modifier.width(0.dp))
-}

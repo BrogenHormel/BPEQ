@@ -226,34 +226,6 @@ class DeviceManager(private val context: Context, val log: AppLog) {
     /** Called (on the main thread) after the automatic read of a newly connected real dongle. */
     var onConnectedRead: ((DeviceState) -> Unit)? = null
 
-    enum class AbVerdict { UNKNOWN, RAM_ONLY, PERSISTS }
-
-    private val _abVerdict = MutableStateFlow(runCatching { AbVerdict.valueOf(prefs.getString(KEY_AB, "UNKNOWN")!!) }.getOrDefault(AbVerdict.UNKNOWN))
-    /** Result of the A/B hardware test: whether TEMP_WRITE without the flash commit is lost on replug. */
-    val abVerdict: StateFlow<AbVerdict> = _abVerdict.asStateFlow()
-
-    fun setAbVerdict(v: AbVerdict) { _abVerdict.value = v; prefs.edit().putString(KEY_AB, v.name).apply() }
-
-    /** Before-state saved by the A/B test's first step (survives an app restart during the replug). */
-    var abBefore: DeviceBackup?
-        get() = prefs.getString(KEY_AB_BEFORE, null)?.let { runCatching { DeviceBackup.fromJson(it) }.getOrNull() }
-        set(v) { prefs.edit().apply { if (v == null) remove(KEY_AB_BEFORE) else putString(KEY_AB_BEFORE, v.toJson()) }.apply() }
-
-    /**
-     * Writes [plan] and applies it from RAM only (bands + preamp, verify, TEMP_WRITE; no flash commit).
-     * Used by A/B and the A/B hardware test.
-     */
-    suspend fun writeTemporary(plan: WritePlan): Boolean = runCatching {
-        withSession("A/B") { s ->
-            val st = s.readState()
-            when (val r = s.write(plan, st.slot, commit = false, restoreTo = st)) {
-                is WriteResult.Applied -> { _lastState.value = r.state; true }
-                is WriteResult.Mismatch -> false
-                is WriteResult.Committed -> true
-            }
-        }
-    }.getOrElse { false }
-
     /** Read-only: reads everything from the device. */
     suspend fun read(): Result<DeviceState> = runCatching { withSession("Reading") { it.readState() } }.onSuccess(::remember)
 
@@ -301,8 +273,6 @@ class DeviceManager(private val context: Context, val log: AppLog) {
         private const val SIM = "simulator"
         private const val KEY_ORIGINAL = "original_backup"
         private const val KEY_FIRST_WRITE = "first_write_done"
-        private const val KEY_AB = "ab_verdict"
-        private const val KEY_AB_BEFORE = "ab_before"
 
         @Suppress("DEPRECATION")
         fun Intent.usbDevice(): UsbDevice? =

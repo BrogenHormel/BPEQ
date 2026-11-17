@@ -35,7 +35,6 @@ class BpeqApp : Application() {
 
     /** Feature 10: on plug-in, one tap to apply the last profile (or confirm it is already there). */
     private fun offerApplyOnPlugIn(state: app.bpeq.core.device.DeviceState) {
-        app.bpeq.data.Applier.resetAb()
         val prefs = getSharedPreferences("settings", MODE_PRIVATE)
         if (!prefs.getBoolean("plugin_prompt", true)) return
         val match = library.profiles.value.firstOrNull { app.bpeq.core.device.Planner.matchesDevice(it.saved, state) }

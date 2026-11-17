@@ -247,7 +247,6 @@ fun SendBar(profileId: String, canSend: Boolean) {
             if (status == DeviceStatus.NeedsPermission || status == DeviceStatus.PermissionDenied) {
                 FilledTonalButton(onClick = { app.devices.requestPermission() }) { Text("Allow USB") }
             } else {
-                AbButton(profile, matches)
                 Button(
                     onClick = {
                         val plan = Planner.plan(profile.working).plan ?: run { scope.launch { app.editor.send() }; return@Button }

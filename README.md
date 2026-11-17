@@ -29,8 +29,9 @@ Unofficial; not affiliated with or endorsed by CrinEar or WalkPlay.
 - **Tone sliders**: bass, treble tilt and ear gain on top of any profile, blended to stay within 10 bands.
 - **Plug-in prompt** ("Apply <last profile>?"), a **Quick Settings tile** (each tap applies the next favorite) and a
   **home-screen widget** with up to four favorites.
-- **A/B**: profile vs. flat with the same preamp, switched from RAM only (never saved to the dongle's flash). It is
-  offered only after the built-in hardware test proves, on your unit, that temporary writes are lost on replug.
+- **No A/B toggle, on purpose**: on the Protocol Max (firmware 1.4) every band write lands in permanent memory, even
+  without a save command, so a quick EQ-on/off switch would wear the flash. To compare, keep a flat profile and switch
+  with the tile or widget now and then (see `docs/HARDWARE.md`).
 - **Diagnostics**: a log of every USB event and HID report in hex, with Copy and Share, plus a read-only self-test.
   A built-in simulated dongle lets you try everything without hardware.
 

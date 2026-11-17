@@ -38,3 +38,8 @@ Unit: CrinEar Protocol Max, USB 3302:43CC, firmware **1.4**, on a moto g stylus 
   "uncommitted" state. A failed verify therefore leaves a half-written EQ unless it is repaired.
 - Since 1.0.1, BPEQ resends any band/preamp that doesn't read back (up to 3 rounds) and, if it still fails, writes the
   state it read just before the write back (same retries) and commits it, so the dongle never keeps a mix.
+
+## A/B removed (1.0.2)
+Both A/B runs showed writes persist without a commit, so a RAM-only A/B toggle is impossible on firmware 1.4.
+The A/B test card and toggle were removed in 1.0.2 (see git history before that version to restore them, e.g. for a
+future firmware that behaves like the Protocol Micro).
