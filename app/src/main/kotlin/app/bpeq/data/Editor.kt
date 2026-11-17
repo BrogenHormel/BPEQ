@@ -7,11 +7,9 @@ import app.bpeq.core.model.FilterType
 import app.bpeq.core.model.Profile
 import app.bpeq.device.DeviceManager
 import app.bpeq.device.WriteOutcome
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlin.math.ln
 import kotlin.math.sqrt
@@ -19,10 +17,11 @@ import kotlin.math.sqrt
 /** A message for the snackbar, optionally with an action (e.g. Undo). */
 data class UiMessage(val text: String, val actionLabel: String? = null, val action: (() -> Unit)? = null)
 
+/** Snackbar messages: buffered until the UI collects them (e.g. an import on a cold start), delivered once. */
 class Messages {
-    private val _flow = MutableSharedFlow<UiMessage>(extraBufferCapacity = 8)
-    val flow: SharedFlow<UiMessage> = _flow.asSharedFlow()
-    fun show(text: String, actionLabel: String? = null, action: (() -> Unit)? = null) { _flow.tryEmit(UiMessage(text, actionLabel, action)) }
+    private val channel = kotlinx.coroutines.channels.Channel<UiMessage>(16, kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
+    val flow: kotlinx.coroutines.flow.Flow<UiMessage> = channel.receiveAsFlow()
+    fun show(text: String, actionLabel: String? = null, action: (() -> Unit)? = null) { channel.trySend(UiMessage(text, actionLabel, action)) }
 }
 
 /** Editing operations on the current profile. Drags update the working copy live and become one undo step. */

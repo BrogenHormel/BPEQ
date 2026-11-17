@@ -24,7 +24,8 @@ object Actions {
 
     /** Imports EQ text as a new profile and opens it. Returns true on success. */
     fun importText(text: String, nameHint: String?): Boolean {
-        val r = runCatching { EqImport.parse(text) }.getOrElse { app.messages.show(it.message ?: "Import failed"); return false }
+        app.log.info("import: ${text.length} chars, name hint \"$nameHint\"")
+        val r = runCatching { EqImport.parse(text) }.getOrElse { app.log.warn("import failed: ${it.message}"); app.messages.show(it.message ?: "Import failed"); return false }
         val p = app.library.create(nameHint ?: "Imported ${stamp()}", r.eq)
         app.library.select(p.id)
         app.editor.select(null)
@@ -59,6 +60,7 @@ object Actions {
     /** Handles VIEW (Open with) and SEND (Share) intents carrying EQ text. Returns true if it was one. */
     fun handleIntent(ctx: Context, intent: Intent?): Boolean {
         intent ?: return false
+        if (intent.action == Intent.ACTION_VIEW || intent.action == Intent.ACTION_SEND) app.log.info("incoming ${intent.action} type=${intent.type} data=${intent.data}")
         when (intent.action) {
             Intent.ACTION_VIEW -> intent.data?.let { importUri(ctx, it); return true }
             Intent.ACTION_SEND -> {

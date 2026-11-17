@@ -46,6 +46,8 @@ import androidx.compose.ui.unit.dp
 import app.bpeq.BpeqApp
 import app.bpeq.core.device.MaxLimits
 import app.bpeq.core.device.Planner
+import app.bpeq.core.tune.Rebuild
+import androidx.compose.runtime.saveable.rememberSaveable
 import app.bpeq.core.model.Band
 import app.bpeq.core.model.FilterType
 import app.bpeq.core.model.PreampMode
@@ -67,6 +69,9 @@ fun EditorScreen(modifier: Modifier = Modifier, onOpenLibrary: () -> Unit) {
     val eq = profile.working
     val selected by ed.selected.collectAsState()
     val plan = remember(eq) { Planner.plan(eq) }
+    var ov by rememberSaveable(stateSaver = OverlaySaver) { mutableStateOf(OverlaySet()) }
+    var rebuild by remember { mutableStateOf<Rebuild.Result?>(null) }
+    rebuild?.let { r -> RebuildDialog(eq, r, onDismiss = { rebuild = null }, onApply = { ed.edit { r.eq }; rebuild = null }) }
 
     Column(modifier.fillMaxSize()) {
         // Header: profile name (tap: library), undo/redo, save
@@ -87,15 +92,17 @@ fun EditorScreen(modifier: Modifier = Modifier, onOpenLibrary: () -> Unit) {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                     ResponseGraph(
                         eq, selected, Modifier.fillMaxWidth().height(230.dp).padding(6.dp),
+                        overlays = overlaysFor(eq, plan, profile.tuning, ov),
                         onSelect = ed::select,
                         onDragStart = ed::beginDrag,
                         onDrag = { id, f, g -> ed.dragBand(id) { it.copy(freqHz = MaxLimits.clampFreq(f), gainDb = MaxLimits.clampGain(g)) } },
                         onPinch = { id, k -> ed.dragBand(id) { it.copy(q = MaxLimits.clampQ(Math.round(it.q * k * 100) / 100.0)) } },
                         onDragEnd = ed::endDrag,
                     )
+                    OverlayChips(ov, profile.tuning != null) { ov = it }
                 }
             }
-            if (!plan.ok || plan.clampNotes.isNotEmpty()) item { IssuesCard(plan.issues, plan.clampNotes) }
+            if (!plan.ok || plan.clampNotes.isNotEmpty()) item { IssuesCard(plan.issues, plan.clampNotes, if (plan.unstorable.isNotEmpty()) ({ rebuild = Rebuild.rebuild(eq) }) else null) }
             item { PreampCard(eq.preampMode, eq.manualPreampDb, plan.preampDb) }
             itemsIndexed(eq.bands, key = { _, b -> b.id }) { i, b ->
                 BandCard(i, b, b.id == selected, plan.unstorable.any { it.bandIndex == i })
@@ -112,11 +119,14 @@ fun EditorScreen(modifier: Modifier = Modifier, onOpenLibrary: () -> Unit) {
 }
 
 @Composable
-private fun IssuesCard(issues: List<String>, notes: List<String>) {
+private fun IssuesCard(issues: List<String>, notes: List<String>, onRebuild: (() -> Unit)?) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             issues.forEach { Text("⚠ $it", color = Palette.bad, style = MaterialTheme.typography.bodySmall) }
             notes.forEach { Text("ℹ $it", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) }
+            if (onRebuild != null) FilledTonalButton(onClick = onRebuild, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                Text("Rebuild for the device")
+            }
         }
     }
 }

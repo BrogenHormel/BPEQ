@@ -48,6 +48,9 @@ fun ResponseGraph(
     onPinch: (Long, Double) -> Unit = { _, _ -> },
     onDragEnd: () -> Unit = {},
     interactive: Boolean = true,
+    /** Minimal drawing (curve + zero line), for thumbnails. */
+    compact: Boolean = !interactive,
+    showNodes: Boolean = true,
 ) {
     val grid = FreqGrid.DISPLAY
     val total = remember(eq.bands) { Response.ideal(eq.bands, grid) }
@@ -118,7 +121,7 @@ fun ResponseGraph(
         fun xOf(f: Double) = (ln(f / 20.0) / ln(1000.0) * w).toFloat()
         fun yOf(db: Double) = ((DB_RANGE - db.coerceIn(-DB_RANGE - 2, DB_RANGE + 2)) / (2 * DB_RANGE) * h).toFloat()
 
-        if (!interactive) {
+        if (compact) {
             drawLine(gridColor, Offset(0f, yOf(0.0)), Offset(w, yOf(0.0)), 1f)
             drawCurve(grid.freqs, total, curveColor, 2.dp.toPx(), false, ::xOf, ::yOf)
             return@Canvas
@@ -149,7 +152,7 @@ fun ResponseGraph(
         drawCurve(grid.freqs, total, curveColor, 2.5.dp.toPx(), false, ::xOf, ::yOf)
 
         // nodes
-        eq.bands.forEachIndexed { i, b ->
+        if (showNodes) eq.bands.forEachIndexed { i, b ->
             val p = Offset(xOf(b.freqHz), yOf(b.gainDb))
             val sel = b.id == selectedId
             val col = if (!b.enabled) labelColor.copy(alpha = 0.4f) else if (sel) selColor else curveColor

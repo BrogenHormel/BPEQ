@@ -120,3 +120,40 @@ class RebuildTest {
         assertTrue(abs(r.eq.bands.sumOf { it.gainDb }) > 5)
     }
 }
+
+class AutoTuneLevelTest {
+    @Test
+    fun `eq stays near 0 dB in the midrange so headroom is not wasted`() {
+        val target = Targets.load("harman_ie_2019")
+        val g = FreqGrid.log(400)
+        val iem = Curve("iem", g.freqs, DoubleArray(g.size) { target.at(g.freqs[it]) + 70 + if (g.freqs[it] > 4000) -5.0 else 0.0 })
+        val r = AutoTune.run(iem, target)
+        val mid = Response.ideal(r.eq.bands, FreqGrid(doubleArrayOf(500.0, 1000.0, 2000.0)))
+        assertTrue(mid.all { abs(it) < 1.0 }, mid.toList().toString())
+        assertTrue(r.rmsAfter < 1.0, "rms ${r.rmsAfter}")
+    }
+}
+
+class TuningPersistenceTest {
+    @Test
+    fun `profile with tuning curves survives json`() {
+        val t = Targets.load("autoeq_ie").normalized().resampled(AutoTune.GRID.freqs)
+        val p = app.bpeq.core.model.Profile(name = "x", tuning = app.bpeq.core.model.Tuning(t, t))
+        val back = app.bpeq.core.model.Profile.fromJson(p.toJson())
+        assertEquals(t.freqs.toList(), back.tuning!!.measurement.freqs.toList())
+        assertEquals(t.db.toList(), back.tuning!!.target.db.toList())
+        assertEquals(t.name, back.tuning!!.target.name)
+    }
+}
+
+class ShelfBoundsTest {
+    @Test
+    fun `shelves stay in bass and treble`() {
+        val target = Targets.load("harman_ie_2019")
+        val g = FreqGrid.log(400)
+        val iem = Curve("iem", g.freqs, DoubleArray(g.size) { val f = g.freqs[it]; target.at(f) + 3 * Math.exp(-Math.pow(Math.log(f / 3000) / 0.5, 2.0)) - 4 * Math.exp(-Math.pow(Math.log(f / 150) / 0.6, 2.0)) })
+        val r = AutoTune.run(iem, target)
+        assertTrue(r.eq.bands.filter { it.type == FilterType.LOW_SHELF }.all { it.freqHz <= 500 }, r.eq.bands.toString())
+        assertTrue(r.eq.bands.filter { it.type == FilterType.HIGH_SHELF }.all { it.freqHz >= 1000 }, r.eq.bands.toString())
+    }
+}

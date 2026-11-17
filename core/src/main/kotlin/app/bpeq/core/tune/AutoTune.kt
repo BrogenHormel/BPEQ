@@ -25,6 +25,9 @@ data class Bounds(
     val qMax: Double = 6.0,
     val shelfQMin: Double = 0.4,
     val shelfQMax: Double = 1.0,
+    /** Keep shelves doing shelf jobs (bass/treble), not wandering into the mids. */
+    val lowShelfMaxHz: Double = 500.0,
+    val highShelfMinHz: Double = 1000.0,
 )
 
 /**
@@ -39,6 +42,8 @@ class Fitter(
     private val bounds: Bounds,
     private val freeOffset: Boolean = true,
     private val isCancelled: () -> Boolean = { false },
+    /** Used when [freeOffset] is false: the fixed level of the model. */
+    private val fixedOffset: Double = 0.0,
 ) {
     private val n = grid.size
 
@@ -48,8 +53,13 @@ class Fitter(
 
     fun clamp(b: Band): Band {
         val shelf = b.type.isShelf
+        val (fLo, fHi) = when (b.type) {
+            FilterType.LOW_SHELF -> bounds.fMin to min(bounds.lowShelfMaxHz, bounds.fMax)
+            FilterType.HIGH_SHELF -> max(bounds.highShelfMinHz, bounds.fMin) to bounds.fMax
+            FilterType.PEAK -> bounds.fMin to bounds.fMax
+        }
         return b.copy(
-            freqHz = b.freqHz.coerceIn(bounds.fMin, bounds.fMax),
+            freqHz = b.freqHz.coerceIn(fLo, fHi),
             gainDb = b.gainDb.coerceIn(bounds.gainMin, bounds.gainMax),
             q = b.q.coerceIn(if (shelf) bounds.shelfQMin else bounds.qMin, if (shelf) bounds.shelfQMax else bounds.qMax),
         )
@@ -71,7 +81,7 @@ class Fitter(
 
     /** Best offset for fixed bands (weighted mean of the residual). */
     fun bestOffset(resp: Array<DoubleArray>): Double {
-        if (!freeOffset) return 0.0
+        if (!freeOffset) return fixedOffset
         var s = 0.0; var w = 0.0
         for (i in 0 until n) { var m = 0.0; for (r in resp) m += r[i]; s += weights[i] * (desired[i] - m); w += weights[i] }
         return if (w > 0) s / w else 0.0
@@ -142,7 +152,7 @@ class Fitter(
                     cand[bi] = if (storable(nb)) nb else b
                 }
                 val cresp = Array(cand.size) { if (cand[it] === bands[it]) resp[it] else bandDb(cand[it]) }
-                val coff = if (freeOffset) offset + d[np - 1] else 0.0
+                val coff = if (freeOffset) offset + d[np - 1] else fixedOffset
                 val ccost = cost(cresp, coff)
                 if (ccost < cost) {
                     bands = cand; resp = cresp; offset = coff; cost = ccost
@@ -220,8 +230,12 @@ object AutoTune {
         val desired = DoubleArray(grid.size) { target.at(grid.freqs[it]) - measurement.at(grid.freqs[it]) }
         val w = weights(grid, s)
         val bounds = Bounds(fMax = min(s.fitMaxHz, 16_000.0), gainMin = -s.maxCutDb, gainMax = s.maxBoostDb)
-        val fitter = Fitter(grid, desired, w, bounds, freeOffset = true, isCancelled = isCancelled)
-        val rmsBefore = fitter.rms(emptyList(), fitter.bestOffset(emptyArray()))
+        // Anchor the level at the midrange (300 Hz-3 kHz) so the EQ stays near 0 dB there: a free level would let
+        // the fit lift every filter together and waste headroom (a bigger preamp cut for the same sound).
+        val mid = grid.freqs.indices.filter { grid.freqs[it] in 300.0..3000.0 }
+        val level = mid.sumOf { desired[it] } / mid.size
+        val fitter = Fitter(grid, desired, w, bounds, freeOffset = false, isCancelled = isCancelled, fixedOffset = level)
+        val rmsBefore = Fitter(grid, desired, w, bounds).let { it.rms(emptyList(), it.bestOffset(emptyArray())) }
 
         var bands = ArrayList<Band>()
         if (s.useShelves && s.maxFilters >= 3) {
@@ -255,7 +269,7 @@ object AutoTune {
         val final = fit.bands.filter { abs(it.gainDb) >= 0.15 }.map {
             it.copy(freqHz = Math.round(it.freqHz).toDouble(), gainDb = Math.round(it.gainDb * 10) / 10.0, q = Math.round(it.q * 100) / 100.0)
         }.filter { fitter.storable(it) }.sortedBy { it.freqHz }
-        val rmsAfter = fitter.rms(final, fitter.bestOffset(Array(final.size) { fitter.bandDb(final[it]) }))
+        val rmsAfter = Fitter(grid, desired, w, bounds).let { f -> f.rms(final, f.bestOffset(Array(final.size) { f.bandDb(final[it]) })) }
         return TuneResult(Eq(final, PreampMode.AUTO), rmsBefore, rmsAfter, System.currentTimeMillis() - t0)
     }
 
@@ -265,6 +279,4 @@ object AutoTune {
         for (i in out.indices) out[i] += measurement.at(grid.freqs[i])
         return out
     }
-
-    @Suppress("unused") private fun lnRatio(a: Double, b: Double) = ln(a / b)
 }

@@ -4,6 +4,7 @@ import android.app.Application
 import app.bpeq.data.Editor
 import app.bpeq.data.Library
 import app.bpeq.data.Messages
+import app.bpeq.data.TuneSession
 import app.bpeq.device.AppLog
 import app.bpeq.device.DeviceManager
 
@@ -12,6 +13,7 @@ class BpeqApp : Application() {
     lateinit var devices: DeviceManager; private set
     lateinit var library: Library; private set
     lateinit var editor: Editor; private set
+    lateinit var tune: TuneSession; private set
     val messages = Messages()
 
     override fun onCreate() {
@@ -27,6 +29,7 @@ class BpeqApp : Application() {
         devices = DeviceManager(this, log)
         library = Library(this)
         editor = Editor(library, devices, messages)
+        tune = TuneSession(library, messages)
     }
 
     companion object {

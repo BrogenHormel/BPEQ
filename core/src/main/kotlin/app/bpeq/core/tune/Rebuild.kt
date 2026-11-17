@@ -77,7 +77,7 @@ object Rebuild {
 
         // Refit everything (shape only) to the original curve, never leaving the storable set.
         val weights = DoubleArray(GRID.size) { if (GRID.freqs[it] > 16_000) 0.25 else 1.0 }
-        val fitter = Fitter(GRID, original, weights, Bounds(fMin = 20.0, fMax = 20_000.0, qMin = 0.1, qMax = 10.0, shelfQMin = 0.1, shelfQMax = 2.0))
+        val fitter = Fitter(GRID, original, weights, Bounds(fMin = 20.0, fMax = 20_000.0, qMin = 0.1, qMax = 10.0, shelfQMin = 0.1, shelfQMax = 2.0, lowShelfMaxHz = 20_000.0, highShelfMinHz = 20.0))
         val enabled = bands.withIndex().filter { it.value.enabled }
         val start = Response.ideal(bands, GRID)
         val before = shapeDiff(original, start)

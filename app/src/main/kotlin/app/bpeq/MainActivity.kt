@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -39,6 +40,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 enum class Tab(val label: String, val icon: ImageVector) {
     EDITOR("EQ", Icons.Filled.Edit),
     LIBRARY("Library", Icons.Filled.List),
+    TUNE("Tune", Icons.Filled.Star),
     DEVICE("Device", Icons.Filled.Settings),
     DIAGNOSTICS("Log", Icons.Filled.Info),
 }
@@ -50,7 +52,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        if (savedInstanceState == null) handle(intent)
+        handle(intent)
         setContent {
             BpeqTheme {
                 var tab by rememberSaveable { mutableStateOf(Tab.EDITOR) }
@@ -78,6 +80,7 @@ class MainActivity : ComponentActivity() {
                     when (tab) {
                         Tab.EDITOR -> EditorScreen(m, onOpenLibrary = { tab = Tab.LIBRARY })
                         Tab.LIBRARY -> LibraryScreen(m, onOpen = { tab = Tab.EDITOR })
+                        Tab.TUNE -> app.bpeq.ui.TuneScreen(m, onOpenEditor = { tab = Tab.EDITOR })
                         Tab.DEVICE -> DeviceScreen(m, onOpenDiagnostics = { tab = Tab.DIAGNOSTICS })
                         Tab.DIAGNOSTICS -> DiagnosticsScreen(m)
                     }
@@ -86,10 +89,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** Handles an incoming intent once, even if the activity is recreated with the same intent. */
     private fun handle(intent: Intent?) {
-        BpeqApp.instance.devices.onAttachIntent(intent ?: return)
+        intent ?: return
+        if (intent.getBooleanExtra(HANDLED, false)) return
+        intent.putExtra(HANDLED, true)
+        BpeqApp.instance.devices.onAttachIntent(intent)
         if (Actions.handleIntent(this, intent)) requestedTab.value = Tab.EDITOR
     }
+
+    companion object { private const val HANDLED = "app.bpeq.handled" }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
