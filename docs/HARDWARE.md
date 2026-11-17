@@ -30,6 +30,11 @@ Unit: CrinEar Protocol Max, USB 3302:43CC, firmware **1.4**, on a moto g stylus 
 - So A/B stays **off**: switching through this path would write the flash on every toggle. The app restored the
   profile with a normal verified write.
 
-## Open
-- Whether bare band/preamp writes (no TEMP_WRITE, no commit) also persist across a replug. Only relevant if a
-  verify ever fails: BPEQ then sends no commit, but the registers may still hold the new values.
+## Second A/B run (2026-11-17, BPEQ 1.0.0) - dropped write, and bare writes persist
+- The dongle **silently ignored one band write** (band 2 of 10): read-back still showed the old filter. This matches
+  the ~1-in-20 dropped replies seen on reads. BPEQ refused to commit and sent no TEMP_WRITE.
+- After unplug/replug, the bands that *had* arrived were still there (band 1 flat, band 2 old). So on firmware 1.4
+  **plain band writes persist across a power cycle even without TEMP_WRITE or the flash command**; there is no
+  "uncommitted" state. A failed verify therefore leaves a half-written EQ unless it is repaired.
+- Since 1.0.1, BPEQ resends any band/preamp that doesn't read back (up to 3 rounds) and, if it still fails, writes the
+  state it read just before the write back (same retries) and commits it, so the dongle never keeps a mix.

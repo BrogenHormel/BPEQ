@@ -28,6 +28,13 @@ class SimulatedDongle(
     var unplugAfterSends: Int? = null
     /** Store this band's gain off by one LSB when written (simulates a write that did not take). */
     var corruptWriteOfBand: Int? = null
+    /** Band index -> how many of its next writes are silently ignored (the real dongle sometimes drops a report). */
+    val dropWritesOfBand = mutableMapOf<Int, Int>()
+    /**
+     * Firmware 1.4 behaviour (owner's unit, 2026-11-17): band/preamp writes survive a power cycle even without
+     * TEMP_WRITE or the flash command. False models the Protocol Micro, where only the flash command persists.
+     */
+    var writesPersist: Boolean = true
     /** Queue a volume-key report (ID 0x03) before every Nth reply. */
     var volumeKeyNoiseEvery: Int = 0
     /** Emulate the capture quirk: the first PEQ read after VERSION answers with a summary packet. */
@@ -52,6 +59,7 @@ class SimulatedDongle(
 
     /** Power cycle: RAM and the DSP reload from flash. */
     fun replug() {
+        if (writesPersist) flash = ram.copy()
         ram = flash.copy(); active = flash.copy(); replies.clear(); unplugged = false; unplugAfterSends = null
     }
 
@@ -122,6 +130,7 @@ class SimulatedDongle(
                 var g = d[31] or (d[32] shl 8); if (g > 32767) g -= 65536
                 var regs = Registers(d[27] or (d[28] shl 8), d[29] or (d[30] shl 8), g, d[33])
                 if (!MaxLimits.isValid(regs)) outOfLimitWrites += "band ${i + 1}: $regs"
+                dropWritesOfBand[i]?.let { n -> if (n > 0) { dropWritesOfBand[i] = n - 1; return } }
                 if (corruptWriteOfBand == i) regs = regs.copy(gain256 = regs.gain256 - 1)
                 ram.bands[i] = Stored(regs, raw.copyOfRange(8, 28), d[35])
             }

@@ -246,7 +246,7 @@ class DeviceManager(private val context: Context, val log: AppLog) {
     suspend fun writeTemporary(plan: WritePlan): Boolean = runCatching {
         withSession("A/B") { s ->
             val st = s.readState()
-            when (val r = s.write(plan, st.slot, commit = false)) {
+            when (val r = s.write(plan, st.slot, commit = false, restoreTo = st)) {
                 is WriteResult.Applied -> { _lastState.value = r.state; true }
                 is WriteResult.Mismatch -> false
                 is WriteResult.Committed -> true
@@ -270,11 +270,17 @@ class DeviceManager(private val context: Context, val log: AppLog) {
                 if (expectedSlot != null && before.slot != expectedSlot) {
                     throw DeviceIoException("slot byte changed since the preview (0x%02x -> 0x%02x); nothing written".format(expectedSlot, before.slot))
                 }
-                when (val r = s.write(plan, before.slot, commit = true)) {
+                when (val r = s.write(plan, before.slot, commit = true, restoreTo = before)) {
                     is WriteResult.Committed -> { remember(r.state); WriteOutcome(label, true, listOf(
                         "Written, verified (all ${plan.registers.size} bands, slot, preamp), saved to the dongle, verified again.")) }
-                    is WriteResult.Mismatch -> { remember(r.state); WriteOutcome(label, false,
-                        listOf("Read-back did not match, so nothing was saved to the dongle's memory:") + r.differences) }
+                    is WriteResult.Mismatch -> {
+                        runCatching { remember(s.readState()) }
+                        WriteOutcome(label, false, listOf(when (r.restored) {
+                            true -> "The dongle didn't accept every value after 3 tries, so the previous EQ was put back and verified."
+                            false -> "The dongle didn't accept every value, and putting the previous EQ back also failed. Send a profile again."
+                            null -> "Read-back did not match after 3 tries; nothing was committed."
+                        }) + r.differences)
+                    }
                     is WriteResult.Applied -> WriteOutcome(label, true, listOf("Applied temporarily (not saved)."))
                 }
             }

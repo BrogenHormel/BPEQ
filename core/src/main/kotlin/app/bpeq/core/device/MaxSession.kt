@@ -26,8 +26,11 @@ sealed interface WriteResult {
     data class Committed(val state: DeviceState) : WriteResult
     /** Written and verified but intentionally not committed (temporary / A/B). */
     data class Applied(val state: DeviceState) : WriteResult
-    /** Read-back did not match; nothing was committed. */
-    data class Mismatch(val differences: List<String>, val state: DeviceState) : WriteResult
+    /**
+     * Read-back did not match even after resending; nothing was committed. [restored]: true if the previous state was
+     * put back and verified, false if that failed too, null if no restore was attempted.
+     */
+    data class Mismatch(val differences: List<String>, val state: DeviceState, val restored: Boolean? = null) : WriteResult
 }
 
 /**
@@ -111,17 +114,22 @@ class MaxSession(
      * the preamp and the biquads match does it [commit] (flash) and verify again. With commit = false it sends
      * TEMP_WRITE instead (applies from RAM; used for A/B once proven RAM-only).
      */
-    fun write(plan: WritePlan, slot: Int, commit: Boolean): WriteResult {
+    /**
+     * Writes [plan] and verifies it. The Protocol Max occasionally ignores an output report, and on firmware 1.4 every
+     * band write persists across a power cycle even without a commit (docs/HARDWARE.md), so a failed verify would
+     * otherwise leave a half-written EQ: bands or preamp that don't read back are resent (up to [WRITE_ROUNDS] rounds).
+     * If they still don't match and [restoreTo] is given, that state (normally the one read just before) is written
+     * back the same way, so the dongle isn't left with a mix of two profiles.
+     */
+    fun write(plan: WritePlan, slot: Int, commit: Boolean, restoreTo: DeviceState? = null): WriteResult {
         drain()
         log.info("write: ${plan.registers.size} bands, preamp ${plan.preampDb} dB, slot 0x%02x, commit=$commit".format(slot))
-        for (step in registerSteps(plan, slot)) { send(step.report); sleep(step.delayAfterMs) }
-
-        val readBack = readAfterWrite()
-        val diffs = compare(plan, slot, readBack)
+        val (readBack, diffs) = writeVerified(plan, slot)
         if (diffs.isNotEmpty()) {
             diffs.forEach { log.error("verify: $it") }
-            log.error("read-back mismatch: NOT committing")
-            return WriteResult.Mismatch(diffs, readBack)
+            log.error("read-back mismatch after $WRITE_ROUNDS attempts: NOT committing")
+            val restored = restoreTo?.let { restore(it) }
+            return WriteResult.Mismatch(diffs, readBack, restored)
         }
         log.info("verify: all ${MaxLimits.BANDS} bands, slot and preamp match")
 
@@ -131,10 +139,45 @@ class MaxSession(
         val diffs2 = compare(plan, slot, after)
         if (diffs2.isNotEmpty()) {
             diffs2.forEach { log.error("post-commit verify: $it") }
-            return WriteResult.Mismatch(diffs2, after)
+            return WriteResult.Mismatch(diffs2, after, null)
         }
         log.info("committed to flash and verified")
         return WriteResult.Committed(after)
+    }
+
+    /** Sends every band + preamp, then resends only what doesn't read back, up to [WRITE_ROUNDS] times. */
+    private fun writeVerified(plan: WritePlan, slot: Int): Pair<DeviceState, List<String>> {
+        for (step in registerSteps(plan, slot)) { send(step.report); sleep(step.delayAfterMs) }
+        var state = readAfterWrite()
+        var diffs = compare(plan, slot, state)
+        var round = 1
+        while (diffs.isNotEmpty() && round < WRITE_ROUNDS) {
+            round++
+            val badBands = plan.registers.indices.filter { i -> state.bands[i].registers != plan.registers[i] || state.bands[i].slot != slot ||
+                biquadDistance(MaxProtocol.biquadBytes(plan.registers[i]), state.bands[i].biquad) > BIQUAD_TOLERANCE_LSB }
+            log.warn("verify round ${round - 1}: ${diffs.size} difference(s); resending band(s) ${badBands.map { it + 1 }}" +
+                if (state.preampDb != plan.preampDb) " and preamp" else "")
+            badBands.forEach { i -> send(MaxProtocol.bandWrite(i, plan.registers[i], slot)); sleep(30) }
+            if (state.preampDb != plan.preampDb) { send(MaxProtocol.preampWrite(plan.preampDb)); sleep(50) }
+            sleep(100)
+            state = readAfterWrite()
+            diffs = compare(plan, slot, state)
+        }
+        if (round > 1 && diffs.isEmpty()) log.info("verify: matched after resending (round $round)")
+        return state to diffs
+    }
+
+    /** Puts [previous] back (with resends) and commits it so it is also the active EQ. True if it verified. */
+    private fun restore(previous: DeviceState): Boolean {
+        val plan = runCatching { WritePlan(previous.registers, previous.preampDb) }.getOrElse {
+            log.error("can't restore the previous state (outside device limits: ${it.message})"); return false
+        }
+        log.warn("restoring the state read before this write")
+        val (_, diffs) = writeVerified(plan, previous.slot)
+        if (diffs.isNotEmpty()) { diffs.forEach { log.error("restore verify: $it") }; return false }
+        for (step in commitSteps()) { send(step.report); sleep(step.delayAfterMs) }
+        log.info("previous state restored and verified")
+        return true
     }
 
     private fun readAfterWrite(): DeviceState {
@@ -166,6 +209,9 @@ class MaxSession(
 
         /** Biquad bytes may differ by rounding if the firmware recomputes; allow a tiny tolerance (in Q30 LSB). */
         const val BIQUAD_TOLERANCE_LSB = 64
+
+        /** Write attempts (first send + resends of what didn't take) before a write counts as failed. */
+        const val WRITE_ROUNDS = 3
 
         fun compare(plan: WritePlan, slot: Int, s: DeviceState): List<String> {
             val out = ArrayList<String>()

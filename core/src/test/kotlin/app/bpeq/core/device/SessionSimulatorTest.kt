@@ -79,14 +79,46 @@ class SessionSimulatorTest {
     }
 
     @Test
-    fun `temporary write applies without touching flash`() {
-        val sim = SimulatedDongle()
+    fun `temporary write applies without touching flash (Protocol Micro model)`() {
+        val sim = SimulatedDongle().apply { writesPersist = false }
         val r = session(sim).write(plan(), 0x01, commit = false)
         assertIs<WriteResult.Applied>(r)
         assertEquals(0, sim.flashWrites)
         assertEquals(plan().registers, sim.active.registers())
         sim.replug()
         assertEquals(SimulatedDongle.factory(0x01, 0).registers(), sim.active.registers())
+    }
+
+    @Test
+    fun `a dropped band write is resent and the write still verifies and commits`() {
+        val sim = SimulatedDongle().apply { dropWritesOfBand[1] = 1 }
+        val r = session(sim).write(plan(), 0x01, commit = true)
+        assertIs<WriteResult.Committed>(r)
+        assertEquals(plan().registers, sim.flash.registers())
+        assertTrue(log.snapshot().any { "resending band(s) [2]" in it.text })
+    }
+
+    @Test
+    fun `a band that keeps failing is not committed and the previous state is restored`() {
+        val sim = SimulatedDongle()
+        val sess = session(sim)
+        val before = sess.readState()
+        sim.dropWritesOfBand[1] = 5 // 3 failed write rounds, then 2 failed restore rounds, then the restore takes
+        val r = sess.write(plan(), 0x01, commit = true, restoreTo = before)
+        assertIs<WriteResult.Mismatch>(r)
+        assertEquals(true, r.restored)
+        assertEquals(before.registers, sess.readState().registers)
+        sim.replug()
+        assertEquals(before.registers, sess.readState().registers, "no half-written mix survives a power cycle")
+    }
+
+    @Test
+    fun `firmware 1_4 model - writes persist across replug even without commit`() {
+        val sim = SimulatedDongle()
+        val sess = session(sim)
+        sess.write(plan(), 0x01, commit = false)
+        sim.replug()
+        assertEquals(plan().registers, sess.readState().registers)
     }
 
     @Test
