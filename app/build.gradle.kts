@@ -9,17 +9,17 @@ plugins {
 // Version lives in version.properties; scripts/build-apk.sh bumps versionCode on every build.
 val versionProps = Properties().apply { rootProject.file("version.properties").inputStream().use { load(it) } }
 
-// Release signing: ~/peq-signing/signing.properties (outside git). Override with -Pmaxpeq.signing=<file>.
-val signingFile = (providers.gradleProperty("maxpeq.signing").orNull ?: "${System.getProperty("user.home")}/peq-signing/signing.properties")
+// Release signing: ~/peq-signing/signing.properties (outside git). Override with -Pbpeq.signing=<file>.
+val signingFile = (providers.gradleProperty("bpeq.signing").orNull ?: "${System.getProperty("user.home")}/peq-signing/signing.properties")
     .let { file(it) }.takeIf { it.isFile }
 val signing = signingFile?.let { f -> Properties().apply { f.inputStream().use { load(it) } } }
 
 android {
-    namespace = "app.maxpeq"
+    namespace = "app.bpeq"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "app.maxpeq"
+        applicationId = "app.bpeq"
         minSdk = 26
         targetSdk = 36
         versionCode = versionProps.getProperty("versionCode").toInt()

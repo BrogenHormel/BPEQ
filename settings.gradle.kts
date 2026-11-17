@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "maxpeq"
+rootProject.name = "bpeq"
 include(":core")
 include(":app")

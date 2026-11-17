@@ -1,4 +1,4 @@
-package app.maxpeq.core.model
+package app.bpeq.core.model
 
 import kotlinx.serialization.Serializable
 

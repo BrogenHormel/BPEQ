@@ -1,4 +1,4 @@
-# MaxPEQ — plan
+# BPEQ — plan
 
 Native Android PEQ editor for the CrinEar Protocol Max (USB 3302:43CC, WalkPlay SchemeNo16).
 
@@ -6,7 +6,7 @@ Native Android PEQ editor for the CrinEar Protocol Max (USB 3302:43CC, WalkPlay 
 - JDK 17 (system), Android SDK at `~/Android/Sdk` (platforms 35/36/37, build-tools 36). Nothing needs sudo.
 - Stack pinned to the versions Contour ships with on real hardware: AGP 9.4.1, Gradle 9.7.1 (wrapper),
   Kotlin 2.4.20, Compose BOM 2026.09.00, compileSdk 37, targetSdk 36, minSdk 26.
-- Signing: `~/peq-signing/maxpeq-release.jks` + `~/peq-signing/signing.properties` (outside git).
+- Signing: `~/peq-signing/bpeq-release.jks` + `~/peq-signing/signing.properties` (outside git).
   Every build is a signed release build. `scripts/build-apk.sh` bumps versionCode, builds, runs all tests,
   copies the APK to `~/peq-builds/peq-<versionName>.apk`.
 
