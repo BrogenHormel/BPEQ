@@ -27,9 +27,12 @@ object MaxLimits {
     val GAIN256_MIN = (GAIN_MIN * 256).toInt() // -2560
     val GAIN256_MAX = (GAIN_MAX * 256).toInt() // 2560
 
-    /** Spare slots: the device's factory flat (PK 0 dB, Q 0.75 at these frequencies; devicePEQ capture). */
+    /**
+     * Spare slots: the device's own factory flat - PK 0 dB, Q register 182 (0.711) at these frequencies.
+     * Read from the owner's Protocol Max, firmware 1.4, 2026-11-16 (bands 2-10; the TRN Black Pearl uses the same).
+     */
     val FACTORY_FREQS = intArrayOf(31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000)
-    const val FACTORY_Q256 = 192
+    const val FACTORY_Q256 = 182
 
     fun flatRegisters(index: Int) = Registers(FACTORY_FREQS[index], FACTORY_Q256, 0, MaxProtocol.TYPE_PK)
 

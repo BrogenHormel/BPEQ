@@ -23,7 +23,7 @@ class SessionSimulatorTest {
 
     @Test
     fun `reads factory state despite the summary-packet quirk`() {
-        val sim = SimulatedDongle()
+        val sim = SimulatedDongle(version = "0.7", initialSlot = 0xFF).apply { summaryQuirk = true }
         val s = session(sim).readState()
         assertEquals("0.7", s.version)
         assertEquals(10, s.bands.size)
@@ -58,7 +58,7 @@ class SessionSimulatorTest {
     @Test
     fun `commit happens only after verification`() {
         val sim = SimulatedDongle()
-        session(sim).write(plan(), 0xFF, commit = true)
+        session(sim).write(plan(), 0x01, commit = true)
         val cmds = sim.sent.map { (it[1].toInt() and 0xFF) to (it[2].toInt() and 0xFF) }
         val firstFlash = cmds.indexOf(0x01 to 0x01)
         val lastBandRead = cmds.subList(0, firstFlash).lastIndexOf(0x80 to 0x09)
@@ -69,30 +69,30 @@ class SessionSimulatorTest {
     @Test
     fun `mismatch on read-back blocks the flash commit`() {
         val sim = SimulatedDongle().apply { corruptWriteOfBand = 1 }
-        val r = session(sim).write(plan(), 0xFF, commit = true)
+        val r = session(sim).write(plan(), 0x01, commit = true)
         assertIs<WriteResult.Mismatch>(r)
         assertTrue(r.differences.any { "band 2" in it })
         assertEquals(0, sim.flashWrites)
         assertTrue(sim.sent.none { (it[1].toInt() and 0xFF) == 0x01 && (it[2].toInt() and 0xFF) == 0x01 })
         // Nothing applied to the DSP either.
-        assertEquals(SimulatedDongle.factory(0xFF, 0).registers(), sim.active.registers())
+        assertEquals(SimulatedDongle.factory(0x01, 0).registers(), sim.active.registers())
     }
 
     @Test
     fun `temporary write applies without touching flash`() {
         val sim = SimulatedDongle()
-        val r = session(sim).write(plan(), 0xFF, commit = false)
+        val r = session(sim).write(plan(), 0x01, commit = false)
         assertIs<WriteResult.Applied>(r)
         assertEquals(0, sim.flashWrites)
         assertEquals(plan().registers, sim.active.registers())
         sim.replug()
-        assertEquals(SimulatedDongle.factory(0xFF, 0).registers(), sim.active.registers())
+        assertEquals(SimulatedDongle.factory(0x01, 0).registers(), sim.active.registers())
     }
 
     @Test
     fun `unplug mid-write surfaces as DeviceIoException and never commits`() {
         val sim = SimulatedDongle().apply { unplugAfterSends = 5 }
-        assertFailsWith<DeviceIoException> { session(sim).write(plan(), 0xFF, commit = true) }
+        assertFailsWith<DeviceIoException> { session(sim).write(plan(), 0x01, commit = true) }
         assertEquals(0, sim.flashWrites)
     }
 

@@ -5,11 +5,11 @@ import app.bpeq.core.device.MaxProtocol.Registers
 /**
  * A software Protocol Max. Speaks the same HID reports, keeps RAM registers, the DSP's active state and
  * flash separately (TEMP_WRITE applies RAM to the DSP, FLASH_EQ persists), and can inject faults.
- * Modelled on devicePEQ's Protocol Max captures (firmware 0.7, slot byte 0xFF).
+ * Modelled on the owner's unit (firmware 1.4, slot byte 0x01) and devicePEQ's captures (firmware 0.7).
  */
 class SimulatedDongle(
-    val version: String = "0.7",
-    initialSlot: Int = 0xFF,
+    val version: String = "1.4",
+    initialSlot: Int = 0x01,
     initialPreamp: Int = 0,
 ) : HidChannel {
 
@@ -31,7 +31,7 @@ class SimulatedDongle(
     /** Queue a volume-key report (ID 0x03) before every Nth reply. */
     var volumeKeyNoiseEvery: Int = 0
     /** Emulate the capture quirk: the first PEQ read after VERSION answers with a summary packet. */
-    var summaryQuirk: Boolean = true
+    var summaryQuirk: Boolean = false
 
     // ---- observable state -----------------------------------------------------------------------
     var flash: Bank = factory(initialSlot, initialPreamp); private set

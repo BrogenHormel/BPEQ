@@ -111,11 +111,7 @@ class MaxSession(
     fun write(plan: WritePlan, slot: Int, commit: Boolean): WriteResult {
         drain()
         log.info("write: ${plan.registers.size} bands, preamp ${plan.preampDb} dB, slot 0x%02x, commit=$commit".format(slot))
-        plan.registers.forEachIndexed { i, r ->
-            send(MaxProtocol.bandWrite(i, r, slot)); sleep(20)
-        }
-        sleep(100)
-        send(MaxProtocol.preampWrite(plan.preampDb)); sleep(50)
+        for (step in registerSteps(plan, slot)) { send(step.report); sleep(step.delayAfterMs) }
 
         val readBack = readAfterWrite()
         val diffs = compare(plan, slot, readBack)
@@ -126,14 +122,8 @@ class MaxSession(
         }
         log.info("verify: all ${MaxLimits.BANDS} bands, slot and preamp match")
 
-        if (!commit) {
-            send(MaxProtocol.tempWrite()); sleep(50)
-            return WriteResult.Applied(readBack)
-        }
-        send(MaxProtocol.commitA()); sleep(20)
-        send(MaxProtocol.commitB()); sleep(20)
-        send(MaxProtocol.tempWrite()); sleep(50)
-        send(MaxProtocol.flashCommit()); sleep(250)
+        for (step in if (commit) commitSteps() else applySteps()) { send(step.report); sleep(step.delayAfterMs) }
+        if (!commit) return WriteResult.Applied(readBack)
         val after = readAfterWrite()
         val diffs2 = compare(plan, slot, after)
         if (diffs2.isNotEmpty()) {
@@ -150,7 +140,27 @@ class MaxSession(
         return DeviceState("", bands, readPreamp())
     }
 
+    /** One output report and the pause after it. */
+    class Step(val report: ByteArray, val delayAfterMs: Long, val what: String)
+
     companion object {
+        /** Phase 1 of a write: every band (20 ms apart), then the preamp. Registers only, not applied, not saved. */
+        fun registerSteps(plan: WritePlan, slot: Int): List<Step> =
+            plan.registers.mapIndexed { i, r ->
+                Step(MaxProtocol.bandWrite(i, r, slot), if (i == plan.registers.lastIndex) 120 else 20, "band ${i + 1}: $r")
+            } + Step(MaxProtocol.preampWrite(plan.preampDb), 50, "preamp ${plan.preampDb} dB")
+
+        /** Phase 2 (only after read-back matched): devicePEQ's commit - apply and save to flash. */
+        fun commitSteps(): List<Step> = listOf(
+            Step(MaxProtocol.commitA(), 20, "commit step 1 (05)"),
+            Step(MaxProtocol.commitB(), 20, "commit step 2 (17)"),
+            Step(MaxProtocol.tempWrite(), 50, "apply (TEMP_WRITE 0A)"),
+            Step(MaxProtocol.flashCommit(), 250, "save to flash (01 01 01)"),
+        )
+
+        /** Phase 2 for a temporary (RAM-only) apply. */
+        fun applySteps(): List<Step> = listOf(Step(MaxProtocol.tempWrite(), 50, "apply (TEMP_WRITE 0A)"))
+
         /** Biquad bytes may differ by rounding if the firmware recomputes; allow a tiny tolerance (in Q30 LSB). */
         const val BIQUAD_TOLERANCE_LSB = 64
 

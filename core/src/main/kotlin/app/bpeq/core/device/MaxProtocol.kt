@@ -88,11 +88,13 @@ object MaxProtocol {
     // ---- registers -----------------------------------------------------------------------------
 
     /** One band exactly as the device stores it. [gain256] is signed. */
+    @kotlinx.serialization.Serializable
     data class Registers(val freq: Int, val q256: Int, val gain256: Int, val typeCode: Int) {
         val freqHz: Double get() = freq.toDouble()
         val q: Double get() = q256 / 256.0
         val gainDb: Double get() = gain256 / 256.0
         val type: FilterType? get() = filterType(typeCode)
+        val isZeroGainPeak: Boolean get() = gain256 == 0 && typeCode == TYPE_PK
         override fun toString() = "${type?.short ?: "type$typeCode"} ${freq}Hz ${"%.2f".format(gainDb)}dB Q${"%.3f".format(q)}"
     }
 

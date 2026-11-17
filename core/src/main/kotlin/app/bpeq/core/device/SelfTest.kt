@@ -1,10 +1,17 @@
 package app.bpeq.core.device
 
+import app.bpeq.core.dsp.FreqGrid
+import app.bpeq.core.dsp.Response
+import kotlin.math.abs
+
 /**
  * Read-only device self-test. Never sends a write report: only VERSION, band and preamp reads.
  * Verifies our decoder/encoder against what the device actually stores.
  */
 object SelfTest {
+    /** Below this, two filters are inaudibly different. */
+    const val SAME_SOUND_DB = 0.05
+
     enum class Status { PASS, WARN, FAIL }
     data class Check(val status: Status, val text: String)
     data class Report(val checks: List<Check>, val state: DeviceState?) {
@@ -47,8 +54,18 @@ object SelfTest {
             if (ours == null) { add(Status.WARN, "band $n: our encoder would refuse these values (Q30 overflow)"); return@forEach }
             val d = MaxSession.biquadDistance(ours, b.biquad)
             if (d == 0L) exact++
-            else add(if (d <= MaxSession.BIQUAD_TOLERANCE_LSB) Status.WARN else Status.FAIL,
-                "band $n: stored coefficients differ from ours by $d LSB (ours ${DeviceLog.hex(ours, false)})")
+            else {
+                // Another tool may have computed the coefficients from unrounded values (devicePEQ does). That is
+                // harmless if the stored filter sounds the same as the registers say: compare the responses.
+                val dev = Response.coeffs(listOf(MaxProtocol.coeffsFromBytes(b.biquad)), FreqGrid.DISPLAY)
+                val reg = Response.coeffs(listOf(MaxProtocol.deviceCoeffs(r)), FreqGrid.DISPLAY)
+                val maxDb = dev.indices.maxOf { abs(dev[it] - reg[it]) }
+                log.info("band $n: ours ${DeviceLog.hex(ours, false)}; responses differ by at most ${"%.4f".format(maxDb)} dB")
+                if (maxDb < SAME_SOUND_DB) add(Status.WARN,
+                    "band $n: stored coefficients differ from ours by $d LSB but sound the same (max ${"%.3f".format(maxDb)} dB); " +
+                        "probably computed by another tool from unrounded values")
+                else add(Status.FAIL, "band $n: stored coefficients differ from ours ($d LSB, up to ${"%.2f".format(maxDb)} dB)")
+            }
             // Whole packet round-trip: our write packet must reproduce the stored fields d[7..35].
             if (MaxLimits.isValid(r)) {
                 val packet = MaxProtocol.bandWrite(b.index, r, b.slot)
