@@ -57,6 +57,7 @@ Native Android PEQ editor for the CrinEar Protocol Max (USB 3302:43CC, WalkPlay 
 - M4 done (0.4.0), owner-tested OK.
 - M5 done (0.5.0), owner-tested OK.
 - M6 built (0.6.0): tone sliders, IEM filter/quick switcher, plug-in prompt, QS tile, favorites widget, A/B test + toggle
-  (enabled only after the owner's replug test proves RAM-only), profile compare overlay, library backup. Awaiting owner test.
+  (enabled only after the owner's replug test proves RAM-only), profile compare overlay, library backup. Owner-tested OK.
+- M7 done (1.0.0): README (build, signing, sideload, credits), LICENSES/, About card, smooth tone sliders.
 - Hardware facts: docs/HARDWARE.md. Dev smoke tests: emulator `Medium_Phone_API_37.0` + `scripts/ui.sh`
   (simulated dongle in the Device tab). Build: `scripts/build-apk.sh <versionName>`.

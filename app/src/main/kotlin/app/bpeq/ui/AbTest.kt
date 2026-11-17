@@ -109,3 +109,19 @@ fun SettingsCard() {
         }
     }
 }
+
+@Composable
+fun AboutCard() {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("About BPEQ ${app.bpeq.BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Unofficial parametric EQ for the CrinEar Protocol Max. Not affiliated with CrinEar or WalkPlay.\n\n" +
+                    "Credits: WalkPlay protocol and biquad maths adapted from Contour (Apache-2.0, github.com/Iwakura9/contour), " +
+                    "which ported them from devicePEQ (0BSD, Jerome O'Flaherty, github.com/jeromeof/devicePEQ). " +
+                    "Target curves from AutoEQ (MIT, Jaakko Pasanen). Built with Kotlin and Jetpack Compose (Apache-2.0).",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}

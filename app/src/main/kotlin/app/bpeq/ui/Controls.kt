@@ -41,8 +41,8 @@ import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.ln
 
-/** Maps a value to 0..1 and back (linear or logarithmic). */
-class Scale(val min: Double, val max: Double, val log: Boolean = false) {
+/** Maps a value to 0..1 and back (linear or logarithmic). A data class, so equal scales are equal keys. */
+data class Scale(val min: Double, val max: Double, val log: Boolean = false) {
     fun toT(v: Double): Float = (if (log) ln(v / min) / ln(max / min) else (v - min) / (max - min)).toFloat().coerceIn(0f, 1f)
     fun fromT(t: Float): Double { val c = t.coerceIn(0f, 1f).toDouble(); return if (log) min * exp(c * ln(max / min)) else min + c * (max - min) }
 }
@@ -61,11 +61,13 @@ fun FineSlider(
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.primary,
     centre: Double? = null,
+    /** Slow drags move the value at reduced speed for precision. Off = the thumb follows the finger 1:1. */
+    fine: Boolean = true,
 ) {
     val cur by rememberUpdatedState(value)
     val track = MaterialTheme.colorScheme.surfaceVariant
     Box(
-        modifier.fillMaxWidth().height(36.dp).pointerInput(scale) {
+        modifier.fillMaxWidth().height(36.dp).pointerInput(scale, fine) {
             awaitEachGesture {
                 val down = awaitFirstDown()
                 var t = scale.toT(cur)
@@ -80,7 +82,7 @@ fun FineSlider(
                         if (!started) { started = true; onStart() }
                         val dt = (c.uptimeMillis - lastTime).coerceAtLeast(1)
                         val speed = abs(dx) / dt // px per ms
-                        val factor = if (speed < 0.25f) 0.2f else if (speed < 0.8f) 0.5f else 1f
+                        val factor = if (!fine) 1f else if (speed < 0.12f) 0.35f else if (speed < 0.5f) 0.65f else 1f
                         t = (t + dx / size.width * factor).coerceIn(0f, 1f)
                         onChange(scale.fromT(t))
                         c.consume()

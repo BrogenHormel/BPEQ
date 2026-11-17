@@ -41,11 +41,15 @@ import kotlinx.coroutines.launch
 
 val COMPARE_COLOR = Color(0xFFC792EA)
 
+/** Must be a stable instance: FineSlider keys its gesture handler on the scale, so a new one per recomposition
+ * would restart the drag after every value change. */
+private val TONE_SCALE = Scale(-Tone.RANGE, Tone.RANGE)
+
 /** Tone sliders (feature 8): bass shelf, treble tilt, ear gain, blended into the profile within 10 bands. */
 @Composable
 fun ToneCard(tone: Tone) {
     val ed = BpeqApp.instance.editor
-    val scale = Scale(-Tone.RANGE, Tone.RANGE)
+    val scale = TONE_SCALE
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -60,7 +64,7 @@ fun ToneCard(tone: Tone) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(label, style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(64.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     FineSlider(value, scale, ed::beginDrag, { v -> ed.dragTo { it.copy(tone = set(it.tone, Math.round(v * 2) / 2.0)) } }, ed::endDrag,
-                        Modifier.weight(1f).padding(horizontal = 4.dp), color = MaterialTheme.colorScheme.tertiary, centre = 0.0)
+                        Modifier.weight(1f).padding(horizontal = 4.dp), color = MaterialTheme.colorScheme.tertiary, centre = 0.0, fine = false)
                     ValueChip("", fmtGain(value), fmtNum(value, 1), { v -> ed.edit { it.copy(tone = set(it.tone, v.coerceIn(-Tone.RANGE, Tone.RANGE))) } }, "dB", Modifier.width(76.dp))
                 }
             }

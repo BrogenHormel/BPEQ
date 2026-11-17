@@ -66,6 +66,10 @@ fun ResponseGraph(
     val labelColor = cs.onSurfaceVariant
     val curveColor = cs.primary
     val selColor = cs.secondary
+    // Paints are created once, not per frame, so dragging stays allocation-light.
+    val labelPaint = remember(labelColor) { android.graphics.Paint().apply { color = labelColor.toArgb(); isAntiAlias = true } }
+    val nodePaint = remember { android.graphics.Paint().apply {
+        color = android.graphics.Color.BLACK; isAntiAlias = true; textAlign = android.graphics.Paint.Align.CENTER; isFakeBoldText = true } }
 
     Canvas(
         modifier.pointerInput(interactive) {
@@ -129,7 +133,7 @@ fun ResponseGraph(
             return@Canvas
         }
         // grid
-        val paint = android.graphics.Paint().apply { color = labelColor.toArgb(); textSize = 9.dp.toPx(); isAntiAlias = true }
+        val paint = labelPaint.apply { textSize = 9.dp.toPx() }
         for (f in listOf(20.0, 50.0, 100.0, 200.0, 500.0, 1000.0, 2000.0, 5000.0, 10000.0, 20000.0)) {
             val x = xOf(f)
             drawLine(gridColor, Offset(x, 0f), Offset(x, h), 1f)
@@ -159,10 +163,7 @@ fun ResponseGraph(
             val sel = b.id == selectedId
             val col = if (!b.enabled) labelColor.copy(alpha = 0.4f) else if (sel) selColor else curveColor
             drawCircle(col, if (sel) 11.dp.toPx() else 8.dp.toPx(), p)
-            val tp = android.graphics.Paint().apply {
-                color = android.graphics.Color.BLACK; textSize = 9.dp.toPx(); isAntiAlias = true; textAlign = android.graphics.Paint.Align.CENTER
-                isFakeBoldText = true
-            }
+            val tp = nodePaint.apply { textSize = 9.dp.toPx() }
             drawContext.canvas.nativeCanvas.drawText("${i + 1}", p.x, p.y + 3.dp.toPx(), tp)
         }
     }
