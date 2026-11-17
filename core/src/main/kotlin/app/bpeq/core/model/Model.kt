@@ -7,8 +7,8 @@ import kotlinx.serialization.Serializable
  *
  * Shelf "Q" follows the device/devicePEQ convention: it is the RBJ shelf *slope* S
  * (alpha = sin(w0)/2 * sqrt((A + 1/A)(1/S - 1) + 2)), because that is what the WalkPlay
- * firmware and the official tool use for the Q register of a shelf. Importers that read
- * shelves written in the RBJ-Q convention (Equalizer APO, AutoEQ) convert on the way in.
+ * firmware, devicePEQ, eq.hangout.audio and Contour use for the Q register of a shelf. Text files from
+ * squig.link / AutoEQ / APO are read with their Q unchanged, like those tools do, so profiles round-trip.
  */
 @Serializable
 enum class FilterType(val short: String, val label: String) {
