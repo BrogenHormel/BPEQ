@@ -59,5 +59,14 @@ Native Android PEQ editor for the CrinEar Protocol Max (USB 3302:43CC, WalkPlay 
 - M6 built (0.6.0): tone sliders, IEM filter/quick switcher, plug-in prompt, QS tile, favorites widget, A/B test + toggle
   (enabled only after the owner's replug test proves RAM-only), profile compare overlay, library backup. Owner-tested OK.
 - M7 done (1.0.0): README (build, signing, sideload, credits), LICENSES/, About card, smooth tone sliders.
+- 1.0.1: resend dropped band writes, restore previous state on persistent verify failure (see docs/HARDWARE.md).
+- 1.0.2: A/B removed (impossible on firmware 1.4: every write persists). Current release: 1.0.2 (versionCode 13).
+
+## Next (planned 2026-11-17)
+- Owner is buying a **CrinEar Protocol Micro** (3302:C20F, WalkPlay SchemeNo11) to add multi-device support.
+  Contour's research/protocol/PROTOCOL.md documents the Micro: 8 bands, no native high shelf (Contour emulates HS as
+  LS + preamp), devicePEQ write/commit sequence, TEMP_WRITE proven RAM-only on the Micro (so A/B may be possible
+  there; re-check with a replug test before enabling). Plan: device registry + capability-driven UI, ship Micro
+  read-only first, owner runs self-test, then enable writes; then reconsider A/B for the Micro only.
 - Hardware facts: docs/HARDWARE.md. Dev smoke tests: emulator `Medium_Phone_API_37.0` + `scripts/ui.sh`
   (simulated dongle in the Device tab). Build: `scripts/build-apk.sh <versionName>`.
