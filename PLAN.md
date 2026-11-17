@@ -51,3 +51,9 @@ Native Android PEQ editor for the CrinEar Protocol Max (USB 3302:43CC, WalkPlay 
      flash command; on the Micro that is proven RAM-only. A dedicated test step will check the Max
      (temp write → listen → replug → read back). A/B ships only if it is proven RAM-only.
 7. README (build, signing, sideload, credits), final polish. APK 1.0.0
+
+## Status (keep updated)
+- M1 done (0.1.0). M2 done, hardware-verified read (0.2.0). M3 done, hardware-verified write/verify/commit/persist (0.3.0).
+- M4 built (0.4.0): editor, graph, library, import/export, send. Waiting for owner's hardware test.
+- Hardware facts: docs/HARDWARE.md. Dev smoke tests: emulator `Medium_Phone_API_37.0` + `scripts/ui.sh`
+  (simulated dongle in the Device tab). Build: `scripts/build-apk.sh <versionName>`.
