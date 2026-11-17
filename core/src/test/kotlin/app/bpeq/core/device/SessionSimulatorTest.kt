@@ -124,3 +124,16 @@ class SessionSimulatorTest {
         assertFailsWith<IllegalArgumentException> { WritePlan(List(9) { MaxLimits.flatRegisters(it) }, 0) }
     }
 }
+
+/** A transport that strips the report ID from input reports (some USB stacks do). */
+class StrippedIdTest {
+    @Test
+    fun `replies without report ID still parse`() {
+        val sim = SimulatedDongle()
+        val stripped = object : HidChannel by sim {
+            override fun receive(timeoutMs: Int): ByteArray? = sim.receive(timeoutMs)?.let { if (it[0].toInt() == 0x4B) it.copyOfRange(1, it.size) else it }
+        }
+        val s = MaxSession(stripped, DeviceLog.NONE, sleep = {}, replyTimeoutMs = 20).readState()
+        assertEquals(10, s.bands.size)
+    }
+}

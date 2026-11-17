@@ -76,9 +76,13 @@ class MaxSession(
     }
 
     /** Some stacks strip the report ID; put it back so parsing is uniform. */
-    private fun normalize(r: ByteArray): ByteArray =
-        if (r.size == MaxProtocol.REPORT_SIZE - 1 && (r[0].toInt() and 0xFF) == MaxProtocol.READ)
-            byteArrayOf(MaxProtocol.REPORT_ID.toByte()) + r else r
+    private fun normalize(r: ByteArray): ByteArray {
+        if (r.isEmpty() || (r[0].toInt() and 0xFF) != MaxProtocol.READ) return r
+        val fixed = ByteArray(MaxProtocol.REPORT_SIZE)
+        fixed[0] = MaxProtocol.REPORT_ID.toByte()
+        r.copyInto(fixed, 1, 0, minOf(r.size, MaxProtocol.REPORT_SIZE - 1))
+        return fixed
+    }
 
     fun readVersion(): String =
         MaxProtocol.parseVersion(request(MaxProtocol.versionRequest(), "VERSION") { MaxProtocol.isReply(it, MaxProtocol.CMD_VERSION) })

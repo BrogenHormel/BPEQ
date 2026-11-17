@@ -62,9 +62,13 @@ fun DeviceScreen(modifier: Modifier = Modifier, onOpenDiagnostics: () -> Unit) {
             }
         }
 
+        if (status == DeviceStatus.NeedsPermission || status == DeviceStatus.PermissionDenied) {
+            Button(onClick = { dm.requestPermission() }, modifier = Modifier.fillMaxWidth()) { Text("Allow USB access") }
+        }
+
         Button(
             onClick = { scope.launch { dm.runSelfTest() } },
-            enabled = status !is DeviceStatus.Busy && status !is DeviceStatus.NoDevice,
+            enabled = status.canTalk,
             modifier = Modifier.fillMaxWidth(),
         ) { Text("Run device self-test (read-only)") }
 
@@ -78,6 +82,9 @@ fun DeviceScreen(modifier: Modifier = Modifier, onOpenDiagnostics: () -> Unit) {
 fun StatusCard(status: DeviceStatus) {
     val (label, color, detail) = when (status) {
         DeviceStatus.NoDevice -> Triple("No device", MaterialTheme.colorScheme.outline, "Plug in the Protocol Max.")
+        DeviceStatus.NeedsPermission -> Triple("No permission", Palette.warn, "Protocol Max found. Tap \"Allow USB access\".")
+        DeviceStatus.PermissionDenied -> Triple("Permission denied", Palette.bad, "Android refused USB access. Tap \"Allow USB access\" to ask again.")
+        is DeviceStatus.Ready -> Triple("Connected", Palette.good, "${status.name} is ready.")
         DeviceStatus.Simulated -> Triple("Simulated", Palette.accent, "Talking to the built-in simulator.")
         is DeviceStatus.Busy -> Triple("Working", Palette.warn, status.what + "…")
         is DeviceStatus.Error -> Triple("Error", Palette.bad, status.message)

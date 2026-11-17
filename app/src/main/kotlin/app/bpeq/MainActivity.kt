@@ -32,6 +32,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        BpeqApp.instance.devices.onAttachIntent(intent)
         setContent {
             BpeqTheme {
                 var tab by rememberSaveable { mutableStateOf(Tab.DEVICE) }
@@ -55,5 +56,15 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        BpeqApp.instance.devices.onAttachIntent(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        BpeqApp.instance.devices.refreshStatus()
     }
 }
