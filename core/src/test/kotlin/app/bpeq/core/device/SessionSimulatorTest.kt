@@ -137,3 +137,26 @@ class StrippedIdTest {
         assertEquals(10, s.bands.size)
     }
 }
+
+class BackupTest {
+    @Test
+    fun `backup round-trips through json and restores the device exactly`() {
+        val sim = SimulatedDongle()
+        val sess = MaxSession(sim, DeviceLog.NONE, sleep = {}, replyTimeoutMs = 20)
+        val original = DeviceBackup.of(sess.readState())
+        assertIs<WriteResult.Committed>(sess.write(TestPlans.audibleCut(), original.slot, commit = true))
+        assertEquals(-1, sim.flash.preamp)
+        val restored = DeviceBackup.fromJson(original.toJson())
+        assertIs<WriteResult.Committed>(sess.write(restored.toPlan().getOrThrow(), original.slot, commit = true))
+        assertEquals(original.registers, sim.flash.registers())
+        assertEquals(0, sim.flash.preamp)
+        assertTrue(sim.outOfLimitWrites.isEmpty())
+    }
+
+    @Test
+    fun `audible test plan is cuts only and storable`() {
+        val p = TestPlans.audibleCut()
+        assertTrue(p.registers.all { it.gain256 <= 0 })
+        assertTrue(p.preampDb <= 0)
+    }
+}

@@ -84,8 +84,11 @@ class MaxSession(
         return fixed
     }
 
+    private var version = ""
+
     fun readVersion(): String =
         MaxProtocol.parseVersion(request(MaxProtocol.versionRequest(), "VERSION") { MaxProtocol.isReply(it, MaxProtocol.CMD_VERSION) })
+            .also { version = it }
 
     fun readBand(i: Int): BandReply =
         MaxProtocol.parseBand(request(MaxProtocol.bandRequest(i), "band ${i + 1}") { MaxProtocol.isBandReply(it, i) }, i)
@@ -137,7 +140,7 @@ class MaxSession(
     private fun readAfterWrite(): DeviceState {
         drain()
         val bands = (0 until MaxLimits.BANDS).map { readBand(it) }
-        return DeviceState("", bands, readPreamp())
+        return DeviceState(version, bands, readPreamp())
     }
 
     /** One output report and the pause after it. */
