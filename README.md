@@ -42,9 +42,17 @@ Unofficial; not affiliated with or endorsed by CrinEar or WalkPlay.
 3. Plug in the Protocol Max. When Android asks *Open BPEQ when Protocol Max is connected?*, tick **Always** so the app
    gets USB access without asking each time.
 
-Updates install over the previous version and **keep your profiles**, as long as every build is signed with the same
-key (see *Signing*). Android refuses an update signed with a different key; uninstalling first would delete your
-profiles, so make a **Library → ⋮ → Back up whole library** first if that ever happens.
+Official releases install over the previous version and **keep your profiles**. Android refuses an update signed with
+a different key (for example, your own build over an official release); uninstalling first would delete your
+profiles, so make a **Library → ⋮ → Back up whole library** first if you ever switch.
+
+### Verify a download
+
+Official APKs are signed with this certificate (SHA-256):
+
+`DC:7A:60:DB:BB:5C:39:B8:8B:15:E8:F3:F4:64:44:F4:76:4A:5B:EF:39:C9:EE:BB:A0:21:ED:77:94:3C:B9:2D`
+
+Check it with `apksigner verify --print-certs peq-<version>.apk` (from the Android SDK build-tools).
 
 ### First use
 
@@ -76,29 +84,14 @@ echo "sdk.dir=$HOME/Android/Sdk" > local.properties   # path to your Android SDK
 scripts/build-apk.sh 0.7.0                             # signed release APK -> ~/peq-builds/peq-0.7.0.apk
 ```
 
-`scripts/build-apk.sh [versionName]` bumps `versionCode` in `version.properties` (every build must be higher than the
-installed one), runs all unit tests, builds the minified, signed release APK, prints the signing certificate and copies
+`scripts/build-apk.sh [versionName]` bumps `versionCode` in `version.properties`, runs all unit tests, builds the minified, signed release APK, prints the signing certificate and copies
 the APK to `~/peq-builds/peq-<versionName>.apk`.
 
-### Signing
+### Signing your own build
 
-Release builds are signed with a keystore kept **outside the repository**:
-
-```
-~/peq-signing/bpeq-release.jks        # the key (RSA 4096, alias "bpeq")
-~/peq-signing/signing.properties      # storeFile=bpeq-release.jks, storePassword=..., keyAlias=bpeq, keyPassword=...
-```
-
-`app/build.gradle.kts` reads `~/peq-signing/signing.properties` (or the file given with `-Pbpeq.signing=<path>`).
-**Back up both files somewhere safe.** If the key is lost, new builds can't update the installed app; you would have to
-back up the library, uninstall, install, and restore. Certificate SHA-256:
-`DC:7A:60:DB:BB:5C:39:B8:8B:15:E8:F3:F4:64:44:F4:76:4A:5B:EF:39:C9:EE:BB:A0:21:ED:77:94:3C:B9:2D`.
-
-To create a new key (only for a fresh install base):
-
-```sh
-keytool -genkeypair -keystore ~/peq-signing/bpeq-release.jks -alias bpeq -keyalg RSA -keysize 4096 -validity 36500
-```
+Signed builds need your own keystore and a `signing.properties` file with `storeFile`, `storePassword`, `keyAlias`
+and `keyPassword`. The build reads `~/peq-signing/signing.properties` by default, or the file given with
+`-Pbpeq.signing=<path>`. A build signed with your own key can't install over an official release (see *Install*).
 
 ### Project layout
 
@@ -112,7 +105,7 @@ core/   pure Kotlin/JVM, no Android; everything here is unit-tested
   tune/     Curve (FR parsing), Targets (bundled), AutoTune + Fitter (bounded LM), Rebuild, ToneBlend
 app/    Android: Compose UI (Material 3), USB HID transport, library storage, tile, widget
 scripts/build-apk.sh   signed build;  scripts/ui.sh   emulator UI helper used for smoke tests
-docs/HARDWARE.md       protocol facts verified on the owner's dongle (firmware 1.4)
+docs/HARDWARE.md       protocol facts verified on real hardware (firmware 1.4)
 ```
 
 Golden tests reproduce real Protocol Max USB traffic byte for byte (devicePEQ's captures and a read-out of a real unit).
