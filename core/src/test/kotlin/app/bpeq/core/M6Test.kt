@@ -10,6 +10,8 @@ import app.bpeq.core.model.Eq
 import app.bpeq.core.model.FilterType
 import app.bpeq.core.model.Profile
 import app.bpeq.core.model.Tone
+import app.bpeq.core.model.PreampMode
+import app.bpeq.core.tune.Rebuild
 import app.bpeq.core.tune.ToneBlend
 import kotlin.math.abs
 import kotlin.test.Test
@@ -42,6 +44,38 @@ class ToneTest {
         println("tone refit max error ${"%.2f".format(err)} dB")
         assertTrue(err < 1.5, "err $err")
         assertTrue(Planner.plan(eq).ok)
+    }
+
+    @Test
+    fun `every tone setting is storable and keeps the intended curve shape`() {
+        val bands = listOf(Band(FilterType.LOW_SHELF, 35.0, -0.3, 1.0), Band(FilterType.PEAK, 9772.0, 6.0, 2.6), Band(FilterType.HIGH_SHELF, 11955.0, -10.0, 1.0))
+        var g = -Tone.RANGE
+        while (g <= Tone.RANGE) {
+            for (t in listOf(Tone(bassDb = g), Tone(trebleDb = g), Tone(earGainDb = g), Tone(g, g, g))) {
+                val eq = Eq(bands, tone = t)
+                assertTrue(Planner.plan(eq).ok, "tone $t: ${Planner.plan(eq).issues}")
+                val want = curve(Eq(bands + ToneBlend.toneBands(t)))
+                assertEquals(0.0, maxErr(want, ToneBlend.curve(eq, grid)), 1e-9, "tone $t")
+            }
+            g += 0.5
+        }
+    }
+
+    @Test
+    fun `flipped treble shelf raises a manual preamp by the same amount`() {
+        val eq = Eq(listOf(Band(FilterType.PEAK, 1000.0, -6.0, 1.0)), preampMode = PreampMode.MANUAL, manualPreampDb = -5.0, tone = Tone(trebleDb = 3.0))
+        assertEquals(3.0, ToneBlend.levelDb(eq.tone))
+        assertEquals(-2, Planner.plan(eq).preampDb)
+    }
+
+    @Test
+    fun `rebuild with tone sliders only touches the user's bands`() {
+        // Band 2 overflows on its own; the tone bands come after it in the planner's numbering.
+        val eq = Eq(listOf(Band(FilterType.PEAK, 1000.0, -2.0, 1.0), Band(FilterType.HIGH_SHELF, 30.0, 8.0, 0.7)), tone = Tone(bassDb = 2.0, trebleDb = 4.0, earGainDb = 1.0))
+        assertTrue(!Planner.plan(eq).ok)
+        val r = Rebuild.rebuild(eq)
+        assertTrue(r.ok, r.changes.toString())
+        assertEquals(eq.tone, r.eq.tone)
     }
 
     @Test

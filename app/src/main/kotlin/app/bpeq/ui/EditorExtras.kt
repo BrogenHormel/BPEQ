@@ -95,7 +95,7 @@ fun QuickSwitcher(open: Boolean, current: Profile, onDismiss: () -> Unit, onOpen
 fun compareOverlay(compareId: String?, currentId: String): List<Overlay> {
     if (compareId == null || compareId == currentId) return emptyList()
     val p = BpeqApp.instance.library.get(compareId) ?: return emptyList()
-    return listOf(Overlay(Response.ideal(ToneBlend.apply(p.working).bands, FreqGrid.DISPLAY), COMPARE_COLOR, width = 2f))
+    return listOf(Overlay(ToneBlend.curve(p.working, FreqGrid.DISPLAY), COMPARE_COLOR, width = 2f))
 }
 
 @Composable

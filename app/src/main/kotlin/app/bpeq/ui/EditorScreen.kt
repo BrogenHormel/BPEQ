@@ -98,6 +98,7 @@ fun EditorScreen(modifier: Modifier = Modifier, onOpenLibrary: () -> Unit) {
                         eq, selected, Modifier.fillMaxWidth().height(230.dp).padding(6.dp),
                         overlays = overlaysFor(eq, plan, profile.tuning, ov) + compareOverlay(compareId, profile.id),
                         totalBands = if (eq.tone.isZero) null else remember(eq) { ToneBlend.apply(eq).bands },
+                        totalOffsetDb = ToneBlend.levelDb(eq.tone),
                         onSelect = ed::select,
                         onDragStart = ed::beginDrag,
                         onDrag = { id, f, g -> ed.dragBand(id) { it.copy(freqHz = MaxLimits.clampFreq(f), gainDb = MaxLimits.clampGain(g)) } },

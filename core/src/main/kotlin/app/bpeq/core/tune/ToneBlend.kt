@@ -1,11 +1,13 @@
 package app.bpeq.core.tune
 
 import app.bpeq.core.device.MaxLimits
+import app.bpeq.core.device.MaxProtocol
 import app.bpeq.core.dsp.FreqGrid
 import app.bpeq.core.dsp.Response
 import app.bpeq.core.model.Band
 import app.bpeq.core.model.Eq
 import app.bpeq.core.model.FilterType
+import app.bpeq.core.model.PreampMode
 import app.bpeq.core.model.Tone
 import kotlin.math.abs
 import kotlin.math.ln
@@ -27,6 +29,28 @@ object ToneBlend {
         if (t.earGainDb != 0.0) add(Band(FilterType.PEAK, EAR_HZ, t.earGainDb, 1.2, id = -3))
     }
 
+    /**
+     * The tone bands as they are sent. A treble boost of about +2 dB or more at 2.5 kHz overflows the Protocol Max's
+     * coefficient range as a high shelf, so it is sent as the equivalent low shelf cut (H_HS(g) = g dB * H_LS(-g)):
+     * same shape, [levelDb] quieter, which the AUTO preamp absorbs (a MANUAL preamp is raised by [levelDb]).
+     */
+    private fun sendBands(t: Tone): List<Band> = toneBands(t).map { b ->
+        if (b.type == FilterType.HIGH_SHELF && !storable(b)) b.copy(type = FilterType.LOW_SHELF, gainDb = -b.gainDb) else b
+    }
+
+    /** Level the sent tone bands are below the intended curve (0 unless the treble shelf had to be flipped). */
+    fun levelDb(t: Tone): Double = toneBands(t).zip(sendBands(t)).sumOf { (a, b) -> if (a.type != b.type) a.gainDb else 0.0 }
+
+    /** The intended combined curve (bands + tone), level included, as drawn on the graph. */
+    fun curve(eq: Eq, grid: FreqGrid): DoubleArray {
+        val c = Response.ideal(apply(eq).bands, grid)
+        val lv = levelDb(eq.tone)
+        if (lv != 0.0) for (i in c.indices) c[i] += lv
+        return c
+    }
+
+    private fun storable(b: Band) = MaxProtocol.storable(MaxLimits.quantize(b))
+
     private val GRID = FreqGrid.log(160)
     private val cache = object : LinkedHashMap<Eq, Eq>(16, 0.75f, true) {
         override fun removeEldestEntry(e: MutableMap.MutableEntry<Eq, Eq>?) = size > 32
@@ -36,9 +60,9 @@ object ToneBlend {
     fun apply(eq: Eq): Eq {
         if (eq.tone.isZero) return eq
         synchronized(cache) { cache[eq]?.let { return it } }
-        val combined = eq.bands + toneBands(eq.tone)
+        val combined = eq.bands + sendBands(eq.tone)
         val result = if (combined.count { it.enabled } <= MaxLimits.BANDS) {
-            eq.copy(bands = combined, tone = Tone())
+            eq.copy(bands = combined)
         } else {
             val enabled = combined.filter { it.enabled }.toMutableList()
             val target = Response.ideal(enabled, GRID)
@@ -57,9 +81,11 @@ object ToneBlend {
             val fit = Fitter(GRID, target, DoubleArray(GRID.size) { if (GRID.freqs[it] > 16_000) 0.25 else 1.0 },
                 Bounds(fMin = 20.0, fMax = 20_000.0, qMin = 0.1, qMax = 10.0, shelfQMin = 0.1, shelfQMax = 2.0, lowShelfMaxHz = 20_000.0, highShelfMinHz = 20.0),
                 freeOffset = false).fit(enabled, 40)
-            eq.copy(bands = fit.bands.map { it.copy(freqHz = Math.round(it.freqHz).toDouble(), gainDb = Math.round(it.gainDb * 100) / 100.0, q = Math.round(it.q * 1000) / 1000.0) }, tone = Tone())
+            eq.copy(bands = fit.bands.map { it.copy(freqHz = Math.round(it.freqHz).toDouble(), gainDb = Math.round(it.gainDb * 100) / 100.0, q = Math.round(it.q * 1000) / 1000.0) })
         }
-        synchronized(cache) { cache[eq] = result }
-        return result
+        val lv = levelDb(eq.tone)
+        val out = result.copy(tone = Tone(), manualPreampDb = if (eq.preampMode == PreampMode.MANUAL) eq.manualPreampDb + lv else eq.manualPreampDb)
+        synchronized(cache) { cache[eq] = out }
+        return out
     }
 }

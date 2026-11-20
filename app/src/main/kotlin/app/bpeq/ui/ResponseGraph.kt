@@ -53,9 +53,13 @@ fun ResponseGraph(
     showNodes: Boolean = true,
     /** Bands for the combined curve if they differ from the nodes (e.g. with tone sliders blended in). */
     totalBands: List<Band>? = null,
+    /** Constant added to the combined curve (tone bands sent at a lower level, see ToneBlend.levelDb). */
+    totalOffsetDb: Double = 0.0,
 ) {
     val grid = FreqGrid.DISPLAY
-    val total = remember(eq.bands, totalBands) { Response.ideal(totalBands ?: eq.bands, grid) }
+    val total = remember(eq.bands, totalBands, totalOffsetDb) {
+        Response.ideal(totalBands ?: eq.bands, grid).also { c -> if (totalOffsetDb != 0.0) for (i in c.indices) c[i] += totalOffsetDb }
+    }
     val selBand = eq.bands.firstOrNull { it.id == selectedId }
     val selCurve = remember(selBand) { selBand?.let { Response.band(it, grid) } }
     val bands by rememberUpdatedState(eq.bands)

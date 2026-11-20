@@ -9,6 +9,7 @@ import app.bpeq.core.model.Band
 import app.bpeq.core.model.Eq
 import app.bpeq.core.model.FilterType
 import app.bpeq.core.model.PreampMode
+import app.bpeq.core.model.Tone
 import kotlin.math.abs
 
 /**
@@ -39,13 +40,15 @@ object Rebuild {
     private fun storable(b: Band) = MaxProtocol.storable(MaxLimits.quantize(b))
 
     fun rebuild(eq: Eq): Result {
-        val plan = Planner.plan(eq)
-        if (plan.ok) return Result(eq, emptyList(), 0.0, true)
+        if (Planner.plan(eq).ok) return Result(eq, emptyList(), 0.0, true)
+        // Rebuild works on the user's own bands. The planner's indices cover the tone bands blended in after
+        // them (and a refit when tone overflows 10 bands), so plan the bands alone to find the ones to fix.
+        val plan = Planner.plan(eq.copy(tone = Tone()))
         val original = Response.ideal(eq.bands, GRID)
         val changes = ArrayList<String>()
         val bands = eq.bands.toMutableList()
         var preampShift = 0.0
-        val bad = plan.unstorable.map { it.bandIndex }.toSet()
+        val bad = plan.unstorable.map { it.bandIndex }.filter { it in eq.bands.indices }.toSet()
 
         for (i in bad.sortedDescending()) {
             val b = bands[i]

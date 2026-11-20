@@ -28,6 +28,7 @@ import app.bpeq.core.model.Eq
 import app.bpeq.core.model.Tuning
 import app.bpeq.core.tune.AutoTune
 import app.bpeq.core.tune.Rebuild
+import app.bpeq.core.tune.ToneBlend
 
 /** Which overlays are visible on the editor graph. */
 data class OverlaySet(val device: Boolean = true, val iem: Boolean = true, val target: Boolean = true, val result: Boolean = true)
@@ -71,8 +72,10 @@ fun overlaysFor(eq: Eq, plan: Planner.Result, tuning: Tuning?, ov: OverlaySet): 
     }
     if (ov.device) {
         // What the dongle will actually do after clamping/rounding (shape; the preamp is shown separately).
+        // A flipped treble shelf is sent quieter by ToneBlend.levelDb; add it back so only shape differences show.
         val d = Planner.deviceCurve(plan, grid)
-        out += Overlay(DoubleArray(d.size) { d[it] - plan.preampDb }, Palette.warm, dashed = true, width = 1.5f)
+        val lv = ToneBlend.levelDb(eq.tone)
+        out += Overlay(DoubleArray(d.size) { d[it] - plan.preampDb + lv }, Palette.warm, dashed = true, width = 1.5f)
     }
     return out
 }
