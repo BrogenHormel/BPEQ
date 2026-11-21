@@ -7,9 +7,22 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.core.content.FileProvider
 import app.bpeq.BpeqApp
+import app.bpeq.Tab
 import app.bpeq.core.device.Planner
 import app.bpeq.core.io.ApoText
 import app.bpeq.core.io.EqImport
+import app.bpeq.core.io.HttpFetch
+import app.bpeq.core.io.ImportException
+import app.bpeq.core.io.LinkImport
+import app.bpeq.core.model.Tuning
+import app.bpeq.core.tune.AutoTune
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import app.bpeq.core.io.LibraryBackup
 import app.bpeq.core.tune.ToneBlend
 import app.bpeq.core.model.Eq
@@ -24,8 +37,13 @@ object Actions {
     private val app get() = BpeqApp.instance
     private const val MAX_IMPORT_BYTES = 512 * 1024
 
-    /** Imports EQ text as a new profile and opens it. Returns true on success. */
+    /**
+     * Imports EQ text as a new profile and opens it. Returns true on success. Text that is just a link (pasted or
+     * shared from a browser) is imported from the web instead, in the background; that returns false and switches
+     * tab itself when done.
+     */
     fun importText(text: String, nameHint: String?): Boolean {
+        LinkImport.findLink(text)?.let { importLink(it); return false }
         app.log.info("import: ${text.length} chars, name hint \"$nameHint\"")
         val r = runCatching { EqImport.parse(text) }.getOrElse { app.log.warn("import failed: ${it.message}"); app.messages.show(it.message ?: "Import failed"); return false }
         val p = app.library.create(nameHint ?: "Imported ${stamp()}", r.eq)
@@ -34,6 +52,54 @@ object Actions {
         val extra = if (r.notes.isEmpty()) "" else " (" + r.notes.joinToString("; ") + ")"
         app.messages.show("Imported “${p.name}”: ${r.eq.bands.size} band(s)$extra")
         return true
+    }
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val _linkBusy = MutableStateFlow(false)
+    /** A link import is downloading. */
+    val linkBusy: StateFlow<Boolean> = _linkBusy
+
+    /**
+     * Imports from a web link (AutoEQ on GitHub, squig.link, a file URL). Filters become a new profile (with the
+     * IEM/target as overlays when the link has them) and open in the editor; a measurement goes to Tune.
+     */
+    fun importLink(link: String) {
+        if (_linkBusy.value) return
+        _linkBusy.value = true
+        app.log.info("link import: $link")
+        app.messages.show("Downloading…")
+        scope.launch {
+            val r = runCatching { withContext(Dispatchers.IO) { LinkImport.import(link, HttpFetch { app.log.info("GET $it") }) } }
+            _linkBusy.value = false
+            r.onFailure { e ->
+                app.log.warn("link import failed: ${e.message}")
+                app.messages.show(if (e is ImportException) e.message ?: "Import failed" else "Import failed: ${e.message}")
+            }
+            when (val res = r.getOrNull()) {
+                null -> {}
+                is LinkImport.Result.Filters -> {
+                    val eq = res.import.eq
+                    val p = app.library.create(res.name ?: "Imported ${stamp()}", eq, iem = res.measurement?.name ?: "")
+                    val m = res.measurement; val t = res.target
+                    if (m != null && t != null) {
+                        val grid = AutoTune.GRID.freqs
+                        app.library.update(p.id, 0) { it.copy(tuning = Tuning(m.normalized().resampled(grid), t.normalized().resampled(grid))) }
+                    }
+                    app.library.select(p.id)
+                    app.editor.select(null)
+                    app.tabRequest.value = Tab.EDITOR
+                    val notes = res.import.notes
+                    app.messages.show("Imported “${p.name}”: ${eq.bands.size} band(s)" + if (notes.isEmpty()) "" else " (" + notes.joinToString("; ") + ")")
+                }
+                is LinkImport.Result.Measurement -> {
+                    app.tune.setMeasurement(res.measurement)
+                    res.target?.let(app.tune::setCustomTarget)
+                    app.tabRequest.value = Tab.TUNE
+                    val t = res.target?.let { " and target “${it.name}”" } ?: ""
+                    app.messages.show("Loaded “${res.measurement.name}”$t. Tap Auto-tune." + if (res.notes.isEmpty()) "" else " (" + res.notes.joinToString("; ") + ")")
+                }
+            }
+        }
     }
 
     fun importClipboard(ctx: Context) {

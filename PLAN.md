@@ -67,7 +67,12 @@ Native Android PEQ editor for the CrinEar Protocol Max (USB 3302:43CC, WalkPlay 
   automatically as the opposite shelf (Planner.flipShelf, Result.levelDb) so Rebuild only handles wide treble peaks;
   sweep test of every single band; tone bands named in messages; tone merge reported; manual preamp clipping warning;
   preamp shown/stored relative to the drawn curve. Fixed Profile timestamps lost on JSON round trip (same-ms default).
-  Current release: 1.0.4 (versionCode 14).
+- 1.0.5: Import from link (core io/LinkImport + HttpFetch; INTERNET permission, used only on a link import).
+  AutoEQ GitHub blob/tree -> profile; squig.link eqFilters (base64url "v2;" rows) -> profile + Tuning overlays;
+  squig.link share= -> Tune (DIR from config.js, "<stem> L/R.txt" averaged, "<name> Target.txt"; phone_book.json for
+  display names). graph.hangout.audio returns 403 for data files: reported, not bypassed. autoeq.app is client-side:
+  explained. Live test: BPEQ_LIVE=1 ./gradlew :core:test --tests '*LinkImportTest*live*'.
+  Current release: 1.0.5 (versionCode 15).
 
 ## Next (planned 2026-11-17)
 - Owner is buying a **CrinEar Protocol Micro** (3302:C20F, WalkPlay SchemeNo11) to add multi-device support.

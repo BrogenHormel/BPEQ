@@ -3,6 +3,8 @@
 
     <!-- USB host is needed to talk to the dongle; not required so the app still installs everywhere. -->
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
+    <!-- Only used when the user imports a link (AutoEQ on GitHub, squig.link); nothing runs in the background. -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:name=".BpeqApp"

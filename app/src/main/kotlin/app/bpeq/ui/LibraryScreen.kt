@@ -65,6 +65,7 @@ fun LibraryScreen(modifier: Modifier = Modifier, onOpen: () -> Unit) {
     val status by app.devices.status.collectAsState()
     val scope = rememberCoroutineScope()
     var newMenu by remember { mutableStateOf(false) }
+    var linkDialog by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf<Profile?>(null) }
     var exporting by remember { mutableStateOf<Profile?>(null) }
     var iemFilter by remember { mutableStateOf<String?>(null) }
@@ -132,11 +133,14 @@ fun LibraryScreen(modifier: Modifier = Modifier, onOpen: () -> Unit) {
             DropdownMenu(newMenu, { newMenu = false }) {
                 DropdownMenuItem({ Text("Flat") }, { newMenu = false; Actions.newFlat(); onOpen() })
                 DropdownMenuItem({ Text("Paste from clipboard") }, { newMenu = false; if (Actions.importText(clip(ctx) ?: "", null)) onOpen() })
+                DropdownMenuItem({ Text("Import from link (AutoEQ, squig.link)") }, { newMenu = false; linkDialog = true })
                 DropdownMenuItem({ Text("Import file (.txt / .json)") }, { newMenu = false; openFile.launch(arrayOf("text/*", "application/json", "application/octet-stream")) })
                 DropdownMenuItem({ Text("Read from device") }, { newMenu = false; scope.launch { if (Actions.readFromDevice()) onOpen() } }, enabled = status.canTalk)
             }
         }
     }
+
+    if (linkDialog) LinkDialog { linkDialog = false }
 
     renaming?.let { p ->
         var name by remember(p.id) { mutableStateOf(p.name) }

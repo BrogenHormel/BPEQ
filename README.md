@@ -16,14 +16,20 @@ Unofficial; not affiliated with or endorsed by CrinEar or WalkPlay.
   IEM tags with filter chips and a quick switcher. An **On device** marker shows which profile the dongle holds.
 - **Import / export**: Equalizer APO / Peace, AutoEQ `ParametricEQ.txt`, squig.link and graph.hangout.audio text,
   EQ by Ear JSON. Paste, open a file, *Open with BPEQ*, or Share to BPEQ. Export as Equalizer APO / Peace text.
+  **Import from link**: an AutoEQ result on GitHub (file or folder) becomes a profile; a squig.link EQ link becomes a
+  profile with the IEM and target as graph overlays; a squig.link graph link loads the IEM (and target) into
+  Auto-tune. Share a link from the browser to BPEQ, or paste it. Sites that refuse downloads by other apps
+  (graph.hangout.audio) are reported, not worked around.
   Whole-library backup and restore (one JSON file; restore never overwrites).
 - **Auto-tune**: load an IEM frequency response (squig.link / Crinacle / AutoEQ / REW CSV or TXT), pick a target
   (Harman in-ear 2019 with/without bass, AutoEq in-ear, Diffuse field, or your own file), and BPEQ fits up to 10 filters
   with a bounded Levenberg–Marquardt optimizer (20 Hz–16 kHz, less weight above 10 kHz) that respects every device limit.
   Runs in well under a second.
-- **Rebuild for the device**: filters the Protocol Max can't store (e.g. a big low-frequency high-shelf boost, whose
-  coefficients overflow the device's fixed-point format) are replaced by an equivalent allowed set, with the original
-  and rebuilt curves shown side by side and the largest difference in dB.
+- **Device-safe filters**: a shelf the Protocol Max can't store (e.g. a big low-frequency high-shelf boost, whose
+  coefficients overflow the device's fixed-point format) is sent automatically as the opposite shelf with the
+  opposite gain: the same shape, quieter, with the preamp making up the level. The rare filters that still don't
+  fit (very wide, large treble peak boosts) get *Rebuild for the device*: an equivalent allowed set, with the
+  original and rebuilt curves side by side and the largest difference in dB.
 - **Graph overlays**: the curve the dongle will really play after rounding/clamping, plus IEM measurement, target and
   predicted result for auto-tuned profiles, and any other profile for comparison.
 - **Tone sliders**: bass, treble tilt and ear gain on top of any profile, blended to stay within 10 bands.
@@ -33,6 +39,7 @@ Unofficial; not affiliated with or endorsed by CrinEar or WalkPlay.
   without a save command, so a quick EQ-on/off switch would wear the flash. To compare, keep a flat profile and switch
   with the tile or widget now and then (see `docs/HARDWARE.md`).
 - **Diagnostics**: a log of every USB event and HID report in hex, with Copy and Share, plus a read-only self-test.
+  If the app crashes, the error and the log leading up to it are shown in the Log on the next launch.
   A built-in simulated dongle lets you try everything without hardware.
 
 ## Install (sideload)
@@ -62,11 +69,17 @@ Check it with `apksigner verify --print-certs peq-<version>.apk` (from the Andro
 3. Every write is read back and compared value by value. Only if everything matches is it saved to the dongle's
    memory, and then it is read back again.
 
+## Privacy
+
+BPEQ has no accounts, analytics or ads. It uses the internet only when you import a link, and then only to download
+that file (plus, for squig.link, the site's `config.js` and IEM list). Everything else stays on the phone.
+
 ## Safety design
 
 - Every value is clamped to the Protocol Max limits before sending (10 bands, gain −10..+10 dB, Q 0.1..10,
   20 Hz..20 kHz, preamp −30..0 dB in whole dB); rounding goes toward quieter (gain and preamp round down).
-- Filters whose coefficients don't fit the device are never sent; *Rebuild* offers an equivalent.
+- Filters whose coefficients don't fit the device are never sent: shelves are flipped to an exact equivalent,
+  anything else needs *Rebuild*. A manual preamp that would let the output clip is warned about.
 - Write order: bands + preamp (not saved) → read back all 10 bands, slot byte, preamp and coefficients → only on an
   exact match: commit to flash → read back again. A mismatch is reported and nothing is saved.
 - One USB worker thread; every USB call has a timeout and bounded retries; unplugging mid-operation is reported as an

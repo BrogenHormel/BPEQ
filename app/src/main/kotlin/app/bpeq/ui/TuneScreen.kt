@@ -29,6 +29,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -61,6 +63,8 @@ fun TuneScreen(modifier: Modifier = Modifier, onOpenEditor: () -> Unit) {
     val pickTarget = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { session.loadCurve(ctx, it)?.let(session::setCustomTarget) }
     }
+    var linkDialog by remember { mutableStateOf(false) }
+    if (linkDialog) LinkDialog { linkDialog = false }
     val types = arrayOf("text/*", "application/octet-stream", "application/vnd.ms-excel")
 
     val grid = FreqGrid.DISPLAY
@@ -95,6 +99,7 @@ fun TuneScreen(modifier: Modifier = Modifier, onOpenEditor: () -> Unit) {
             Text(st.measurement?.let { "${it.name} · ${it.freqs.size} points" } ?: "squig.link / Crinacle / AutoEQ CSV or TXT (frequency, dB).",
                 style = MaterialTheme.typography.bodySmall)
             FilledTonalButton({ pickMeas.launch(types) }, Modifier.fillMaxWidth()) { Text(if (st.measurement == null) "Load measurement file" else "Load another") }
+            TextButton({ linkDialog = true }) { Text("Import from a squig.link link") }
         }
 
         Section("2. Target") {
