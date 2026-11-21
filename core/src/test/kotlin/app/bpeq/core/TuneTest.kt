@@ -86,23 +86,6 @@ class AutoTuneTest {
 
 class RebuildTest {
     @Test
-    fun `unstorable high shelf becomes a low shelf with the same shape`() {
-        val eq = Eq(listOf(Band(FilterType.PEAK, 3000.0, -2.0, 2.0), Band(FilterType.HIGH_SHELF, 80.0, 9.0, 0.7)))
-        assertTrue(!Planner.plan(eq).ok)
-        val r = Rebuild.rebuild(eq)
-        assertTrue(r.ok, r.changes.toString())
-        assertEquals(FilterType.LOW_SHELF, r.eq.bands[1].type)
-        assertEquals(-9.0, r.eq.bands[1].gainDb, 0.01)
-        assertTrue(r.maxDiffDb < 0.05, "diff ${r.maxDiffDb}")
-    }
-
-    @Test
-    fun `manual preamp absorbs the level change`() {
-        val r = Rebuild.rebuild(Eq(listOf(Band(FilterType.HIGH_SHELF, 60.0, 8.0, 0.7)), PreampMode.MANUAL, -10.0))
-        assertEquals(-2.0, r.eq.manualPreampDb, 1e-9)
-    }
-
-    @Test
     fun `storable eq is unchanged`() {
         val eq = Eq(listOf(Band(FilterType.PEAK, 100.0, 3.0, 1.0)))
         val r = Rebuild.rebuild(eq)

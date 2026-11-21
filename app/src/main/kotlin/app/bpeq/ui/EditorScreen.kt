@@ -109,8 +109,10 @@ fun EditorScreen(modifier: Modifier = Modifier, onOpenLibrary: () -> Unit) {
                     CompareChip(compareId)
                 }
             }
-            if (!plan.ok || plan.clampNotes.isNotEmpty()) item { IssuesCard(plan.issues, plan.clampNotes, if (plan.unstorable.isNotEmpty()) ({ rebuild = Rebuild.rebuild(eq) }) else null) }
-            item { PreampCard(eq.preampMode, eq.manualPreampDb, plan.preampDb) }
+            if (!plan.ok || plan.clampNotes.isNotEmpty() || plan.warnings.isNotEmpty()) item {
+                IssuesCard(plan.issues, plan.warnings, plan.clampNotes, if (plan.unstorable.isNotEmpty()) ({ rebuild = Rebuild.rebuild(eq) }) else null)
+            }
+            item { PreampCard(eq.preampMode, eq.manualPreampDb, plan.preampDb - plan.levelDb) }
             item { ToneCard(eq.tone) }
             itemsIndexed(eq.bands, key = { _, b -> b.id }) { i, b ->
                 BandCard(i, b, b.id == selected, plan.unstorable.any { it.bandIndex == i })
@@ -127,10 +129,11 @@ fun EditorScreen(modifier: Modifier = Modifier, onOpenLibrary: () -> Unit) {
 }
 
 @Composable
-private fun IssuesCard(issues: List<String>, notes: List<String>, onRebuild: (() -> Unit)?) {
+private fun IssuesCard(issues: List<String>, warnings: List<String>, notes: List<String>, onRebuild: (() -> Unit)?) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             issues.forEach { Text("⚠ $it", color = Palette.bad, style = MaterialTheme.typography.bodySmall) }
+            warnings.forEach { Text("⚠ $it", color = Palette.warn, style = MaterialTheme.typography.bodySmall) }
             notes.forEach { Text("ℹ $it", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) }
             if (onRebuild != null) FilledTonalButton(onClick = onRebuild, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
                 Text("Rebuild for the device")
@@ -140,23 +143,27 @@ private fun IssuesCard(issues: List<String>, notes: List<String>, onRebuild: (()
 }
 
 @Composable
-private fun PreampCard(mode: PreampMode, manual: Double, deviceDb: Int) {
+/**
+ * [shownDb]: the preamp relative to the curve as drawn. It differs from the device value only when shelves are sent
+ * flipped (Planner.Result.levelDb); a manual preamp is stored in the same terms, so switching modes keeps the level.
+ */
+private fun PreampCard(mode: PreampMode, manual: Double, shownDb: Double) {
     val ed = BpeqApp.instance.editor
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Preamp", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                 Segmented(listOf(PreampMode.AUTO, PreampMode.MANUAL), mode, { if (it == PreampMode.AUTO) "Auto" else "Manual" },
-                    { m -> ed.edit { it.copy(preampMode = m, manualPreampDb = if (m == PreampMode.MANUAL) deviceDb.toDouble() else it.manualPreampDb) } })
+                    { m -> ed.edit { it.copy(preampMode = m, manualPreampDb = if (m == PreampMode.MANUAL) shownDb else it.manualPreampDb) } })
             }
             if (mode == PreampMode.MANUAL) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     FineSlider(manual, PREAMP, ed::beginDrag, { v -> ed.dragTo { it.copy(manualPreampDb = Math.round(v).toDouble()) } }, ed::endDrag,
                         Modifier.weight(1f).padding(end = 8.dp))
-                    ValueChip("dB", "$deviceDb", "$deviceDb", { v -> ed.edit { it.copy(manualPreampDb = v.coerceIn(-30.0, 0.0)) } })
+                    ValueChip("dB", fmtNum(manual, 1), fmtNum(manual, 1), { v -> ed.edit { it.copy(manualPreampDb = v.coerceIn(-30.0, 0.0)) } })
                 }
             } else {
-                Text("$deviceDb dB · keeps the loudest point at or below 0 dB (anti-clipping)",
+                Text("${fmtNum(shownDb, 1)} dB · keeps the loudest point at or below 0 dB (anti-clipping)",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

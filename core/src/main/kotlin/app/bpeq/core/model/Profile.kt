@@ -1,6 +1,8 @@
 package app.bpeq.core.model
 
 import app.bpeq.core.tune.Curve
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.util.UUID
@@ -18,8 +20,9 @@ data class Profile(
     /** IEM this profile is for (feature 9); free text, empty = none. */
     val iem: String = "",
     val favorite: Boolean = false,
-    val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = createdAt,
+    // Defaults are evaluated when encoding; a value equal to "now" would be left out and re-stamped on load.
+    @OptIn(ExperimentalSerializationApi::class) @EncodeDefault val createdAt: Long = System.currentTimeMillis(),
+    @OptIn(ExperimentalSerializationApi::class) @EncodeDefault val updatedAt: Long = createdAt,
     val undo: List<Eq> = emptyList(),
     val redo: List<Eq> = emptyList(),
     /** Measurement + target this profile was tuned for (graph overlays), if any. */

@@ -46,6 +46,32 @@ class AppLog : DeviceLog {
         return header() + body
     }
 
+    /**
+     * Called from the uncaught-exception handler: the process is about to die and the in-memory log with it, so
+     * the stack trace and the newest log entries are written to [file] synchronously, to be shown on next launch.
+     */
+    fun saveCrash(file: java.io.File, thread: Thread, e: Throwable) {
+        runCatching {
+            file.writeText(buildString {
+                appendLine("BPEQ ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) crashed at " +
+                    SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()) + " on thread ${thread.name}")
+                appendLine(e.stackTraceToString().lines().take(60).joinToString("\n"))
+                appendLine("---- log before the crash ----")
+                append(export(maxChars = 12_000).substringAfter("----\n"))
+            })
+        }
+    }
+
+    /** Moves a crash saved by [saveCrash] into this log. Returns true if there was one. */
+    fun restoreCrash(file: java.io.File): Boolean {
+        if (!file.exists()) return false
+        val text = runCatching { file.readText() }.getOrNull()
+        file.delete()
+        if (text.isNullOrBlank()) return false
+        mem.error("PREVIOUS SESSION CRASHED\n$text", null)
+        return true
+    }
+
     companion object {
         fun tag(l: MemoryLog.Level) = when (l) {
             MemoryLog.Level.INFO -> "I"

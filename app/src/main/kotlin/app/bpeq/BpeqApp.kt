@@ -15,17 +15,23 @@ class BpeqApp : Application() {
     lateinit var editor: Editor; private set
     lateinit var tune: TuneSession; private set
     val messages = Messages()
+    /** Tab to switch to, requested from outside the UI (e.g. "Open Log" after a crash). */
+    val tabRequest = kotlinx.coroutines.flow.MutableStateFlow<Tab?>(null)
 
     override fun onCreate() {
         super.onCreate()
         instance = this
         log = AppLog()
         val previous = Thread.getDefaultUncaughtExceptionHandler()
+        val crashFile = java.io.File(filesDir, "last_crash.txt")
+        val crashed = log.restoreCrash(crashFile)
         Thread.setDefaultUncaughtExceptionHandler { t, e ->
             runCatching { log.error("UNCAUGHT on ${t.name}", e) }
+            log.saveCrash(crashFile, t, e)
             previous?.uncaughtException(t, e)
         }
         log.info("app start")
+        if (crashed) messages.show("BPEQ crashed last time. The details are in the Log.", "Open Log") { tabRequest.value = Tab.DIAGNOSTICS }
         devices = DeviceManager(this, log)
         library = Library(this)
         editor = Editor(library, devices, messages)

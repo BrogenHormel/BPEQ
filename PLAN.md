@@ -63,7 +63,11 @@ Native Android PEQ editor for the CrinEar Protocol Max (USB 3302:43CC, WalkPlay 
 - 1.0.2: A/B removed (impossible on firmware 1.4: every write persists) (versionCode 12).
 - 1.0.3: treble tone >= +2 dB was unstorable (HS at 2.5 kHz overflows b1); now sent as LS -g + level (preamp absorbs).
   Rebuild crashed when the unstorable band was a tone band (index past the user bands); it now plans the bands alone.
-  Current release: 1.0.3 (versionCode 13).
+- 1.0.4: crash log persisted to files/last_crash.txt and shown in the Log on next launch; unstorable shelves are sent
+  automatically as the opposite shelf (Planner.flipShelf, Result.levelDb) so Rebuild only handles wide treble peaks;
+  sweep test of every single band; tone bands named in messages; tone merge reported; manual preamp clipping warning;
+  preamp shown/stored relative to the drawn curve. Fixed Profile timestamps lost on JSON round trip (same-ms default).
+  Current release: 1.0.4 (versionCode 14).
 
 ## Next (planned 2026-11-17)
 - Owner is buying a **CrinEar Protocol Micro** (3302:C20F, WalkPlay SchemeNo11) to add multi-device support.

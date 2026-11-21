@@ -58,6 +58,7 @@ class MainActivity : ComponentActivity() {
                 var tab by rememberSaveable { mutableStateOf(Tab.EDITOR) }
                 val snackbar = remember { SnackbarHostState() }
                 LaunchedEffect(Unit) { requestedTab.collect { t -> if (t != null) { tab = t; requestedTab.value = null } } }
+                LaunchedEffect(Unit) { BpeqApp.instance.tabRequest.collect { t -> if (t != null) { tab = t; BpeqApp.instance.tabRequest.value = null } } }
                 LaunchedEffect(Unit) {
                     BpeqApp.instance.messages.flow.collect { m ->
                         val r = snackbar.showSnackbar(m.text, m.actionLabel, withDismissAction = m.actionLabel == null,

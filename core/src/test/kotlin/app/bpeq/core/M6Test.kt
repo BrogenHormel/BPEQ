@@ -71,7 +71,7 @@ class ToneTest {
     @Test
     fun `rebuild with tone sliders only touches the user's bands`() {
         // Band 2 overflows on its own; the tone bands come after it in the planner's numbering.
-        val eq = Eq(listOf(Band(FilterType.PEAK, 1000.0, -2.0, 1.0), Band(FilterType.HIGH_SHELF, 30.0, 8.0, 0.7)), tone = Tone(bassDb = 2.0, trebleDb = 4.0, earGainDb = 1.0))
+        val eq = Eq(listOf(Band(FilterType.PEAK, 1000.0, -2.0, 1.0), Band(FilterType.PEAK, 7096.0, 10.0, 0.1)), tone = Tone(bassDb = 2.0, trebleDb = 4.0, earGainDb = 1.0))
         assertTrue(!Planner.plan(eq).ok)
         val r = Rebuild.rebuild(eq)
         assertTrue(r.ok, r.changes.toString())

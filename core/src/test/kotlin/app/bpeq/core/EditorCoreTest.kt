@@ -112,12 +112,13 @@ class PlannerTest {
     }
 
     @Test
-    fun `too many bands and unstorable shelves are reported`() {
+    fun `too many bands and unstorable peaks are reported`() {
         val many = Planner.plan(Eq(List(11) { Band(FilterType.PEAK, 100.0 * (it + 1), -1.0, 1.0) }))
         assertTrue(many.tooManyBands); assertFalse(many.ok)
-        val hs = Planner.plan(Eq(listOf(Band(FilterType.PEAK, 1000.0, -1.0, 1.0), Band(FilterType.HIGH_SHELF, 60.0, 10.0, 0.7))))
-        assertEquals(1, hs.unstorable.single().bandIndex)
-        assertNull(hs.plan)
+        val pk = Planner.plan(Eq(listOf(Band(FilterType.PEAK, 1000.0, -1.0, 1.0), Band(FilterType.PEAK, 7096.0, 10.0, 0.1))))
+        assertEquals(1, pk.unstorable.single().bandIndex)
+        assertTrue(pk.issues.single().startsWith("Band 2 "), pk.issues.toString())
+        assertNull(pk.plan)
     }
 
     @Test

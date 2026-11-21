@@ -7,18 +7,15 @@ import app.bpeq.core.dsp.FreqGrid
 import app.bpeq.core.dsp.Response
 import app.bpeq.core.model.Band
 import app.bpeq.core.model.Eq
-import app.bpeq.core.model.FilterType
-import app.bpeq.core.model.PreampMode
 import app.bpeq.core.model.Tone
 import kotlin.math.abs
 
 /**
- * Replaces filters the Protocol Max can't store (coefficient overflow, e.g. a big low-frequency high-shelf boost)
- * with an allowed set that matches the same curve, instead of refusing to send:
- *  1. HIGH SHELF +g  ->  LOW SHELF -g at the same frequency/Q, plus g dB of level (exact: H_HS(g) = g dB * H_LS(-g)).
- *     The level change is absorbed by the preamp (AUTO), or added to a MANUAL preamp.
- *  2. Anything still unstorable -> split into two half-gain filters when a band is free, then refit.
- *  3. Finally all bands are refit (storable-only steps) to the original curve, shape only.
+ * Replaces filters the Protocol Max can't store (coefficient overflow) with an allowed set that matches the same
+ * curve, instead of refusing to send. Unstorable shelves never get here: [Planner] sends them as the opposite shelf
+ * automatically. What's left (very wide, large treble peak boosts):
+ *  1. Split into two half-gain filters when a band is free, else reduce the gain until it fits.
+ *  2. Refit all bands (storable-only steps) to the original curve, shape only.
  */
 object Rebuild {
     data class Result(
@@ -47,21 +44,10 @@ object Rebuild {
         val original = Response.ideal(eq.bands, GRID)
         val changes = ArrayList<String>()
         val bands = eq.bands.toMutableList()
-        var preampShift = 0.0
         val bad = plan.unstorable.map { it.bandIndex }.filter { it in eq.bands.indices }.toSet()
 
         for (i in bad.sortedDescending()) {
             val b = bands[i]
-            if (b.type == FilterType.HIGH_SHELF) {
-                val ls = b.copy(type = FilterType.LOW_SHELF, gainDb = -b.gainDb, id = Band.nextId())
-                if (storable(ls)) {
-                    bands[i] = ls
-                    preampShift += b.gainDb
-                    changes += "Band ${i + 1}: high shelf ${fmt(b.gainDb)} dB at ${b.freqHz.toInt()} Hz -> low shelf ${fmt(-b.gainDb)} dB " +
-                        "(same curve, ${fmt(b.gainDb)} dB level difference handled by the preamp)"
-                    continue
-                }
-            }
             if (bands.count { it.enabled } < MaxLimits.BANDS) {
                 val half = b.copy(gainDb = b.gainDb / 2)
                 if (storable(half)) {
@@ -95,11 +81,7 @@ object Rebuild {
             }
         }
         out = out.map { it.copy(freqHz = Math.round(it.freqHz).toDouble(), gainDb = Math.round(it.gainDb * 100) / 100.0, q = Math.round(it.q * 1000) / 1000.0) }
-        val newEq = eq.copy(
-            bands = out,
-            manualPreampDb = if (eq.preampMode == PreampMode.MANUAL) eq.manualPreampDb + preampShift else eq.manualPreampDb,
-        )
-        if (eq.preampMode == PreampMode.MANUAL && preampShift != 0.0) changes += "Manual preamp ${fmt(eq.manualPreampDb)} -> ${fmt(newEq.manualPreampDb)} dB"
+        val newEq = eq.copy(bands = out)
         val diff = shapeDiff(original, Response.ideal(newEq.bands, GRID))
         return Result(newEq, changes, diff, Planner.plan(newEq).ok)
     }
