@@ -46,9 +46,9 @@ import app.bpeq.core.tune.AutoTune
 import app.bpeq.core.tune.Targets
 import kotlinx.coroutines.launch
 
-val MEAS_COLOR = Color(0xFFB0B7C3)
-val TARGET_COLOR = Palette.good
-val RESULT_COLOR = Palette.warm
+val MEAS_COLOR get() = Palette.meas
+val TARGET_COLOR get() = Palette.good
+val RESULT_COLOR get() = Palette.warm
 
 @Composable
 fun TuneScreen(modifier: Modifier = Modifier, onOpenEditor: () -> Unit) {

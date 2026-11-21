@@ -31,6 +31,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import app.bpeq.data.Actions
 import app.bpeq.ui.BpeqTheme
+import app.bpeq.ui.ThemePrefs
+import app.bpeq.ui.isDark
+import androidx.activity.SystemBarStyle
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import app.bpeq.ui.DeviceScreen
 import app.bpeq.ui.DiagnosticsScreen
 import app.bpeq.ui.EditorScreen
@@ -54,7 +59,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         handle(intent)
         setContent {
-            BpeqTheme {
+            val themeMode by ThemePrefs.mode.collectAsState()
+            val dark = themeMode.isDark()
+            // Status/navigation bar icons follow the app's theme, not just the phone's setting.
+            DisposableEffect(dark) {
+                val style = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT) { dark }
+                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+                onDispose {}
+            }
+            BpeqTheme(themeMode) {
                 var tab by rememberSaveable { mutableStateOf(Tab.EDITOR) }
                 val snackbar = remember { SnackbarHostState() }
                 LaunchedEffect(Unit) { requestedTab.collect { t -> if (t != null) { tab = t; requestedTab.value = null } } }

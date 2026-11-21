@@ -22,6 +22,7 @@ class BpeqApp : Application() {
         super.onCreate()
         instance = this
         log = AppLog()
+        app.bpeq.ui.ThemePrefs.load(this)
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         val crashFile = java.io.File(filesDir, "last_crash.txt")
         val crashed = log.restoreCrash(crashFile)

@@ -185,7 +185,7 @@ private fun BandCard(index: Int, b: Band, selected: Boolean, unstorable: Boolean
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(shape = CircleShape, color = if (selected) Palette.warm else MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp).alpha(if (b.enabled) 1f else 0.4f)) {
-                    Box(contentAlignment = Alignment.Center) { Text("${index + 1}", color = Color.Black, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold) }
+                    Box(contentAlignment = Alignment.Center) { Text("${index + 1}", color = if (selected) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold) }
                 }
                 Spacer(Modifier.width(10.dp))
                 Text("${b.type.short}  ${fmtFreq(b.freqHz)} Hz  ${fmtGain(b.gainDb)} dB  Q ${fmtQ(b.q)}",

@@ -39,7 +39,7 @@ import app.bpeq.data.Applier
 import app.bpeq.device.DeviceManager
 import kotlinx.coroutines.launch
 
-val COMPARE_COLOR = Color(0xFFC792EA)
+val COMPARE_COLOR get() = Palette.compare
 
 /** Must be a stable instance: FineSlider keys its gesture handler on the scale, so a new one per recomposition
  * would restart the drag after every value change. */

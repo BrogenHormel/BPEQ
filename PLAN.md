@@ -79,7 +79,10 @@ Native Android PEQ editor for the CrinEar Protocol Max (USB 3302:43CC, WalkPlay 
   DeviceManager.withSession is NonCancellable (a tab change mid-write cancelled the A/B job after the dongle changed).
 - 1.0.8: A/B UI replaced by a "Compare  [EQ On | EQ Off]" toggle above the send bar (ui/AbButton.kt EqOnOffToggle),
   with a caption naming the kept preamp; status "On device · EQ Off"; Send shows "Sent" while compared off.
-  Current release: 1.0.8 (versionCode 18).
+- 1.0.9: themes (ui/Theme.kt ThemeMode + ThemePrefs): System / Light / Dark / AMOLED, chosen in Device -> Settings.
+  Palette colours are snapshot state switched by BpeqTheme (dark/light sets); node labels use onPrimary; system bar
+  icons follow the app theme. The home-screen widget stays dark.
+  Current release: 1.0.9 (versionCode 19).
 
 ## Next (planned 2026-11-17)
 - Owner is buying a **CrinEar Protocol Micro** (3302:C20F, WalkPlay SchemeNo11) to add multi-device support.

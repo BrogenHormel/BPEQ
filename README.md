@@ -34,6 +34,7 @@ Unofficial; not affiliated with or endorsed by CrinEar or WalkPlay.
 - **Graph overlays**: the curve the dongle will really play after rounding/clamping, plus IEM measurement, target and
   predicted result for auto-tuned profiles, and any other profile for comparison.
 - **Tone sliders**: bass, treble tilt and ear gain on top of any profile, blended to stay within 10 bands.
+- **Themes**: System (follows the phone), Light, Dark, or AMOLED (true black), in Device → Settings.
 - **Plug-in prompt** ("Apply <last profile>?"), a **Quick Settings tile** (each tap applies the next favorite) and a
   **home-screen widget** with up to four favorites.
 - **Compare EQ On / Off, with wear limits**: a toggle above the send bar switches the profile on the dongle between

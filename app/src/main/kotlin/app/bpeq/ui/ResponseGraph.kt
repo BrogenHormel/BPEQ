@@ -72,8 +72,9 @@ fun ResponseGraph(
     val selColor = cs.secondary
     // Paints are created once, not per frame, so dragging stays allocation-light.
     val labelPaint = remember(labelColor) { android.graphics.Paint().apply { color = labelColor.toArgb(); isAntiAlias = true } }
-    val nodePaint = remember { android.graphics.Paint().apply {
-        color = android.graphics.Color.BLACK; isAntiAlias = true; textAlign = android.graphics.Paint.Align.CENTER; isFakeBoldText = true } }
+    val nodeText = cs.onPrimary // dark text on the light dark-theme nodes, white on the light theme's darker ones
+    val nodePaint = remember(nodeText) { android.graphics.Paint().apply {
+        color = nodeText.toArgb(); isAntiAlias = true; textAlign = android.graphics.Paint.Align.CENTER; isFakeBoldText = true } }
 
     Canvas(
         modifier.pointerInput(interactive) {

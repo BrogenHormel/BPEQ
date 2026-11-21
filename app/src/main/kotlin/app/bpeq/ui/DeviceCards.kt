@@ -40,6 +40,9 @@ fun SettingsCard() {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
         Column(Modifier.fillMaxWidth().padding(16.dp)) {
             Text("Settings", style = MaterialTheme.typography.titleMedium)
+            val theme by ThemePrefs.mode.collectAsState()
+            Text("Theme", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
+            Segmented(ThemeMode.entries, theme, { it.label }, { ThemePrefs.set(ctx, it) }, Modifier.fillMaxWidth())
             Row(Modifier.fillMaxWidth().toggleable(prompt, role = Role.Switch) { prompt = it; prefs.edit().putBoolean("plugin_prompt", it).apply() }.padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 Text("On plug-in, offer to apply the last profile", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
