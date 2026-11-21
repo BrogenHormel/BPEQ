@@ -36,11 +36,19 @@ class BpeqApp : Application() {
         library = Library(this)
         editor = Editor(library, devices, messages)
         tune = TuneSession(library, messages)
+        app.bpeq.data.Applier.loadAb()
         devices.onConnectedRead = ::offerApplyOnPlugIn
     }
 
     /** Feature 10: on plug-in, one tap to apply the last profile (or confirm it is already there). */
     private fun offerApplyOnPlugIn(state: app.bpeq.core.device.DeviceState) {
+        // A/B left the EQ off (B persists on this firmware): offer to put the profile back, whatever the prompt setting.
+        app.bpeq.data.Applier.abFlatFor.value?.let { id ->
+            library.get(id)?.let { p ->
+                messages.show("Protocol Max connected with the EQ off (A/B). Put “${p.name}” back?", "Restore") { app.bpeq.data.Applier.applyInBackground(id) }
+                return
+            }
+        }
         val prefs = getSharedPreferences("settings", MODE_PRIVATE)
         if (!prefs.getBoolean("plugin_prompt", true)) return
         val match = library.profiles.value.firstOrNull { app.bpeq.core.device.Planner.matchesDevice(it.saved, state) }

@@ -145,10 +145,45 @@ class MaxSession(
         return WriteResult.Committed(after)
     }
 
+    /**
+     * A/B on firmware that persists every write: sends only the bands (and preamp) that differ from [current], then
+     * verifies everything by reading back (reads don't wear the flash) and applies with TEMP_WRITE, without the flash
+     * commit. Returns the result and the number of register writes sent (bands + preamp, resends included).
+     * On a persistent mismatch [current] is put back (that path commits, as any repair does).
+     */
+    fun writeChanged(plan: WritePlan, slot: Int, current: DeviceState): Pair<WriteResult, Int> {
+        drain()
+        val changed = plan.registers.indices.filter { current.bands[it].registers != plan.registers[it] || current.bands[it].slot != slot }
+        val preamp = current.preampDb != plan.preampDb
+        log.info("A/B write: band(s) ${changed.map { it + 1 }}${if (preamp) " + preamp" else ""} differ; no flash commit")
+        if (changed.isEmpty() && !preamp) return WriteResult.Applied(current) to 0
+        var writes = 0
+        changed.forEach { i -> send(MaxProtocol.bandWrite(i, plan.registers[i], slot)); writes++; sleep(30) }
+        if (preamp) { send(MaxProtocol.preampWrite(plan.preampDb)); writes++; sleep(50) }
+        sleep(100)
+        val (readBack, diffs, resent) = verifyAndResend(plan, slot, readAfterWrite())
+        writes += resent
+        if (diffs.isNotEmpty()) {
+            diffs.forEach { log.error("verify: $it") }
+            log.error("A/B: read-back mismatch after $WRITE_ROUNDS attempts")
+            return WriteResult.Mismatch(diffs, readBack, restore(current)) to writes
+        }
+        for (step in applySteps()) { send(step.report); sleep(step.delayAfterMs) }
+        log.info("A/B: verified and applied ($writes register write(s))")
+        return WriteResult.Applied(readBack) to writes
+    }
+
     /** Sends every band + preamp, then resends only what doesn't read back, up to [WRITE_ROUNDS] times. */
     private fun writeVerified(plan: WritePlan, slot: Int): Pair<DeviceState, List<String>> {
         for (step in registerSteps(plan, slot)) { send(step.report); sleep(step.delayAfterMs) }
-        var state = readAfterWrite()
+        val (state, diffs, _) = verifyAndResend(plan, slot, readAfterWrite())
+        return state to diffs
+    }
+
+    /** Compares [first] with [plan]; resends what doesn't match, up to [WRITE_ROUNDS] rounds. Returns the resend count too. */
+    private fun verifyAndResend(plan: WritePlan, slot: Int, first: DeviceState): Triple<DeviceState, List<String>, Int> {
+        var resent = 0
+        var state = first
         var diffs = compare(plan, slot, state)
         var round = 1
         while (diffs.isNotEmpty() && round < WRITE_ROUNDS) {
@@ -157,14 +192,14 @@ class MaxSession(
                 biquadDistance(MaxProtocol.biquadBytes(plan.registers[i]), state.bands[i].biquad) > BIQUAD_TOLERANCE_LSB }
             log.warn("verify round ${round - 1}: ${diffs.size} difference(s); resending band(s) ${badBands.map { it + 1 }}" +
                 if (state.preampDb != plan.preampDb) " and preamp" else "")
-            badBands.forEach { i -> send(MaxProtocol.bandWrite(i, plan.registers[i], slot)); sleep(30) }
-            if (state.preampDb != plan.preampDb) { send(MaxProtocol.preampWrite(plan.preampDb)); sleep(50) }
+            badBands.forEach { i -> send(MaxProtocol.bandWrite(i, plan.registers[i], slot)); resent++; sleep(30) }
+            if (state.preampDb != plan.preampDb) { send(MaxProtocol.preampWrite(plan.preampDb)); resent++; sleep(50) }
             sleep(100)
             state = readAfterWrite()
             diffs = compare(plan, slot, state)
         }
         if (round > 1 && diffs.isEmpty()) log.info("verify: matched after resending (round $round)")
-        return state to diffs
+        return Triple(state, diffs, resent)
     }
 
     /** Puts [previous] back (with resends) and commits it so it is also the active EQ. True if it verified. */

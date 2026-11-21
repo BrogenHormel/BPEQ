@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.bpeq.BpeqApp
+import app.bpeq.data.Applier
 import app.bpeq.core.device.MaxLimits
 import app.bpeq.core.device.Planner
 import app.bpeq.core.tune.Rebuild
@@ -231,6 +232,7 @@ fun SendBar(profileId: String, canSend: Boolean) {
     val state by app.devices.lastState.collectAsState()
     val onDevice by app.library.onDevice.collectAsState()
     val firstDone by app.devices.firstWriteDone.collectAsState()
+    val abFlatFor by Applier.abFlatFor.collectAsState()
     val profile = app.library.profiles.collectAsState().value.firstOrNull { it.id == profileId } ?: return
     val scope = rememberCoroutineScope()
     var preview by remember { mutableStateOf<PendingWrite?>(null) }
@@ -239,6 +241,7 @@ fun SendBar(profileId: String, canSend: Boolean) {
         status is DeviceStatus.Busy -> (status as DeviceStatus.Busy).what + "…" to Palette.warn
         status == DeviceStatus.NoDevice -> "No device" to MaterialTheme.colorScheme.outline
         status == DeviceStatus.NeedsPermission || status == DeviceStatus.PermissionDenied -> "No permission" to Palette.warn
+        abFlatFor == profile.id -> "EQ off (A/B)" to Palette.warn
         matches -> "On device" to Palette.good
         status.canTalk -> (if (status == DeviceStatus.Simulated) "Simulator" else "Connected") to Palette.accent
         else -> "Error" to Palette.bad
@@ -255,6 +258,7 @@ fun SendBar(profileId: String, canSend: Boolean) {
             if (status == DeviceStatus.NeedsPermission || status == DeviceStatus.PermissionDenied) {
                 FilledTonalButton(onClick = { app.devices.requestPermission() }) { Text("Allow USB") }
             } else {
+                if (status.canTalk) AbButton(profile.id, matches && onDevice?.first == profile.id)
                 Button(
                     onClick = {
                         val plan = Planner.plan(profile.working).plan ?: run { scope.launch { app.editor.send() }; return@Button }

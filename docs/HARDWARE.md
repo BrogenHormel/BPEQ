@@ -43,3 +43,11 @@ Unit: CrinEar Protocol Max, USB 3302:43CC, firmware **1.4**, on a moto g stylus 
 Both A/B runs showed writes persist without a commit, so a RAM-only A/B toggle is impossible on firmware 1.4.
 The A/B test card and toggle were removed in 1.0.2 (see git history before that version to restore them, e.g. for a
 future firmware that behaves like the Protocol Micro).
+
+## A/B back, with wear limits (1.0.7)
+At the owner's request A/B returned for firmware 1.4, accepting that each switch is stored permanently. To limit
+wear: only bands/preamp that differ from the read-back state are written (`MaxSession.writeChanged`), verified by
+reads, applied with TEMP_WRITE, and the commit sequence (05, 17, flash 01) is never sent. Switches and register
+writes are counted in the app; past 20 switches a day the user confirms each further block of 20. B state is
+persisted so an unplug on B is offered a restore at the next connect. Flash endurance of the dongle is unknown.
+

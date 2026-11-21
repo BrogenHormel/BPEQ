@@ -55,6 +55,46 @@ class SessionSimulatorTest {
         assertTrue(sim.outOfLimitWrites.isEmpty())
     }
 
+    private fun writesSent(sim: SimulatedDongle) = sim.sent.count { (it[1].toInt() and 0xFF) == MaxProtocol.WRITE &&
+        ((it[2].toInt() and 0xFF) == MaxProtocol.CMD_PEQ || (it[2].toInt() and 0xFF) == MaxProtocol.CMD_GLOBAL_GAIN) }
+
+    @Test
+    fun `A-B switch writes only the bands that change and never commits`() {
+        val sim = SimulatedDongle()
+        val sess = session(sim)
+        val slot = sess.readState().slot
+        assertIs<WriteResult.Committed>(sess.write(plan(), slot, commit = true))
+        val flashBefore = sim.flashWrites
+        val sentBefore = writesSent(sim)
+        // B: flat with the same preamp -> only the profile's 3 bands change.
+        val flat = WritePlan(List(MaxLimits.BANDS) { MaxLimits.flatRegisters(it) }, -4)
+        val (b, nb) = sess.writeChanged(flat, slot, sess.readState())
+        assertIs<WriteResult.Applied>(b)
+        assertEquals(3, nb); assertEquals(sentBefore + 3, writesSent(sim))
+        assertEquals(flat.registers, sim.active.registers())
+        // A again: the same 3 bands back.
+        val (a, na) = sess.writeChanged(plan(), slot, sess.readState())
+        assertIs<WriteResult.Applied>(a)
+        assertEquals(3, na)
+        assertEquals(plan().registers, sim.active.registers())
+        assertEquals(flashBefore, sim.flashWrites, "A/B must not send the flash command")
+        // Nothing to change: nothing sent.
+        assertEquals(0, sess.writeChanged(plan(), slot, sess.readState()).second)
+    }
+
+    @Test
+    fun `A-B switch resends a dropped band`() {
+        val sim = SimulatedDongle()
+        val sess = session(sim)
+        val slot = sess.readState().slot
+        sess.write(plan(), slot, commit = true)
+        sim.dropWritesOfBand[1] = 1
+        val flat = WritePlan(List(MaxLimits.BANDS) { MaxLimits.flatRegisters(it) }, -4)
+        val (r, n) = sess.writeChanged(flat, slot, sess.readState())
+        assertIs<WriteResult.Applied>(r, log.snapshot().joinToString("\n") { it.text })
+        assertTrue(n > 3, "resend counted: $n")
+    }
+
     @Test
     fun `commit happens only after verification`() {
         val sim = SimulatedDongle()

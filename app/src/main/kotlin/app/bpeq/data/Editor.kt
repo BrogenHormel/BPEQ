@@ -90,6 +90,7 @@ class Editor(val library: Library, val devices: DeviceManager, val messages: Mes
         val out = devices.write(plan, devices.lastState.value?.slot, p.name)
         if (out.ok) {
             library.markOnDevice(p.id, p.working)
+            Applier.endAbState()
             messages.show("“${p.name}” is on the dongle")
         } else messages.show("Send failed: ${out.lines.firstOrNull() ?: ""}")
         return out

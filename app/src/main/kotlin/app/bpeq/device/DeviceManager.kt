@@ -183,8 +183,12 @@ class DeviceManager(private val context: Context, val log: AppLog) {
         return UsbHidChannel.open(usb, d, log)
     }
 
-    /** Runs [block] with an open session on the IO thread; status shows [what] meanwhile. */
-    suspend fun <T> withSession(what: String, block: (MaxSession) -> T): T = withContext(io) {
+    /**
+     * Runs [block] with an open session on the IO thread; status shows [what] meanwhile. NonCancellable: once a
+     * session starts it finishes (every USB call has a timeout), so leaving a screen mid-write can't lose track of
+     * what the dongle holds.
+     */
+    suspend fun <T> withSession(what: String, block: (MaxSession) -> T): T = withContext(io + kotlinx.coroutines.NonCancellable) {
         busy = what
         refreshStatus()
         try {
@@ -266,6 +270,30 @@ class DeviceManager(private val context: Context, val log: AppLog) {
         log.info("=== write \"$label\": ${if (outcome.ok) "OK" else "FAILED"} ===")
         _lastWrite.value = outcome
         return outcome
+    }
+
+    /**
+     * A/B switch: writes only the bands/preamp that differ from what the dongle holds, verifies, applies; no flash
+     * commit (on firmware 1.4 the band writes persist anyway). Returns success and the register writes sent.
+     */
+    suspend fun writeAb(plan: WritePlan, label: String): Pair<Boolean, Int> {
+        log.info("=== A/B \"$label\" ===")
+        val r = try {
+            withSession("A/B") { s ->
+                val before = s.readState()
+                remember(before)
+                val (res, n) = s.writeChanged(plan, before.slot, before)
+                when (res) {
+                    is WriteResult.Applied -> { remember(res.state); true to n }
+                    is WriteResult.Committed -> { remember(res.state); true to n }
+                    is WriteResult.Mismatch -> { runCatching { remember(s.readState()) }; false to n }
+                }
+            }
+        } catch (e: Exception) {
+            log.error("A/B failed: ${e.message}"); false to 0
+        }
+        log.info("=== A/B \"$label\": ${if (r.first) "OK" else "FAILED"}, ${r.second} register write(s) ===")
+        return r
     }
 
     companion object {

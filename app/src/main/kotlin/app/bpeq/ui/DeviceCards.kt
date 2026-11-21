@@ -45,6 +45,11 @@ fun SettingsCard() {
                 Text("On plug-in, offer to apply the last profile", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                 Switch(prompt, null)
             }
+            val ab by app.bpeq.data.Applier.abStats.collectAsState()
+            Text("A/B switches: ${ab.today} today, ${ab.total} in total (${ab.writes} band writes to the dongle's memory). " +
+                "Each switch on the Protocol Max is stored permanently, so use it sparingly.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 8.dp))
             Text("Quick Settings tile: edit your quick settings and add “BPEQ profile”. Each tap applies the next ★ favorite.\n" +
                 "Widget: long-press the home screen → Widgets → BPEQ.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
