@@ -77,7 +77,9 @@ Native Android PEQ editor for the CrinEar Protocol Max (USB 3302:43CC, WalkPlay 
 - 1.0.7: A/B on the Max with wear limits (owner's choice): MaxSession.writeChanged writes only differing bands, no
   commit; Applier counts switches/writes, 20/day allowance with confirm, B persisted + restore offer on connect.
   DeviceManager.withSession is NonCancellable (a tab change mid-write cancelled the A/B job after the dongle changed).
-  Current release: 1.0.7 (versionCode 17).
+- 1.0.8: A/B UI replaced by a "Compare  [EQ On | EQ Off]" toggle above the send bar (ui/AbButton.kt EqOnOffToggle),
+  with a caption naming the kept preamp; status "On device · EQ Off"; Send shows "Sent" while compared off.
+  Current release: 1.0.8 (versionCode 18).
 
 ## Next (planned 2026-11-17)
 - Owner is buying a **CrinEar Protocol Micro** (3302:C20F, WalkPlay SchemeNo11) to add multi-device support.

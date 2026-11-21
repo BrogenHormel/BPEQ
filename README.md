@@ -36,11 +36,12 @@ Unofficial; not affiliated with or endorsed by CrinEar or WalkPlay.
 - **Tone sliders**: bass, treble tilt and ear gain on top of any profile, blended to stay within 10 bands.
 - **Plug-in prompt** ("Apply <last profile>?"), a **Quick Settings tile** (each tap applies the next favorite) and a
   **home-screen widget** with up to four favorites.
-- **A/B, with wear limits**: switch the profile on the dongle (A) against EQ off with the same preamp (B), so you hear
-  only the EQ. On the Protocol Max (firmware 1.4) every band write lands in permanent memory, even without a save
-  command (see `docs/HARDWARE.md`), so each switch writes only the bands that change, skips the save command, and is
-  counted (Device tab). After 20 switches in a day BPEQ asks before allowing 20 more. If the dongle is unplugged on
-  B, BPEQ offers to put the profile back when it's connected again.
+- **Compare EQ On / Off, with wear limits**: a toggle above the send bar switches the profile on the dongle between
+  EQ On and EQ Off. EQ Off sets every band flat but keeps the profile's preamp, so the volume matches and you hear only
+  the EQ. On the Protocol Max (firmware 1.4) every band write lands in permanent memory, even without a save command
+  (see `docs/HARDWARE.md`), so each switch writes only the bands that change, skips the save command, and is counted
+  (Device tab). After 20 switches in a day BPEQ asks before allowing 20 more. If the dongle is unplugged on EQ Off,
+  BPEQ offers to turn the profile back on when it's connected again.
 - **Diagnostics**: a log of every USB event and HID report in hex, with Copy and Share, plus a read-only self-test.
   If the app crashes, the error and the log leading up to it are shown in the Log on the next launch.
   A built-in simulated dongle lets you try everything without hardware.

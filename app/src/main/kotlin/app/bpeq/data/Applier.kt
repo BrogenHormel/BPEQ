@@ -128,12 +128,12 @@ object Applier {
         if (id != profileId) return "Send this profile to the dongle first"
         val a = Planner.plan(eq).plan ?: return "This profile can't be sent as is"
         val toFlat = _abFlatFor.value != id
-        val (ok, writes) = app.devices.writeAb(if (toFlat) flatPlan(a) else a, if (toFlat) "B: EQ off" else "A: profile")
+        val (ok, writes) = app.devices.writeAb(if (toFlat) flatPlan(a) else a, if (toFlat) "EQ Off" else "EQ On")
         if (writes > 0) count(writes)
-        if (!ok) return "A/B switch failed; see the Log"
+        if (!ok) return "Switching the EQ ${if (toFlat) "off" else "on"} failed; see the Log"
         setFlat(if (toFlat) id else null)
         val s = _abStats.value
-        return (if (toFlat) "B: EQ off" else "A: EQ on") + " · $writes band write(s) · ${s.today} switch(es) today"
+        return (if (toFlat) "EQ Off" else "EQ On") + " · ${s.today} switch(es) today"
     }
 
     private val _abBusy = MutableStateFlow(false)

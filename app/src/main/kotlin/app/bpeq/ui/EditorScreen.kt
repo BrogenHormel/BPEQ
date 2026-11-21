@@ -241,12 +241,20 @@ fun SendBar(profileId: String, canSend: Boolean) {
         status is DeviceStatus.Busy -> (status as DeviceStatus.Busy).what + "…" to Palette.warn
         status == DeviceStatus.NoDevice -> "No device" to MaterialTheme.colorScheme.outline
         status == DeviceStatus.NeedsPermission || status == DeviceStatus.PermissionDenied -> "No permission" to Palette.warn
-        abFlatFor == profile.id -> "EQ off (A/B)" to Palette.warn
+        abFlatFor == profile.id -> "On device · EQ Off" to Palette.warn
         matches -> "On device" to Palette.good
         status.canTalk -> (if (status == DeviceStatus.Simulated) "Simulator" else "Connected") to Palette.accent
         else -> "Error" to Palette.bad
     }
+    val comparingOff = abFlatFor == profile.id
+    val onDeviceEq = onDevice?.takeIf { it.first == profile.id }?.second
+    // Compare EQ On/Off: only for the profile on the dongle, unedited (or while it is off, so it can be turned back on).
+    val canCompare = onDeviceEq != null && (matches || comparingOff)
+    // While compared off, the unedited profile is still "sent": Send would only rewrite it.
+    val sent = matches || (comparingOff && onDeviceEq?.sameSettings(profile.working) == true)
     Surface(color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+      Column {
+        if (canCompare) EqOnOffToggle(profile.id, Planner.plan(onDeviceEq!!).preampDb, enabled = status.canTalk || status is DeviceStatus.Busy)
         Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Row(Modifier.weight(1f).background(color.copy(alpha = 0.15f), RoundedCornerShape(16.dp)).padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically) {
@@ -258,17 +266,17 @@ fun SendBar(profileId: String, canSend: Boolean) {
             if (status == DeviceStatus.NeedsPermission || status == DeviceStatus.PermissionDenied) {
                 FilledTonalButton(onClick = { app.devices.requestPermission() }) { Text("Allow USB") }
             } else {
-                if (status.canTalk) AbButton(profile.id, matches && onDevice?.first == profile.id)
                 Button(
                     onClick = {
                         val plan = Planner.plan(profile.working).plan ?: run { scope.launch { app.editor.send() }; return@Button }
                         if (!firstDone) preview = PendingWrite(profile.name, plan, state?.slot ?: 0x01)
                         else scope.launch { app.editor.send() }
                     },
-                    enabled = status.canTalk && canSend && !matches,
-                ) { Text(if (matches) "Sent" else "Send to device") }
+                    enabled = status.canTalk && canSend && !sent,
+                ) { Text(if (sent) "Sent" else "Send to device") }
             }
         }
+      }
     }
     preview?.let { p -> WritePreviewDialog(p, onDismiss = { preview = null }, onConfirm = { preview = null; scope.launch { app.editor.send() } }) }
 }

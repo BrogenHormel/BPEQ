@@ -46,8 +46,8 @@ fun SettingsCard() {
                 Switch(prompt, null)
             }
             val ab by app.bpeq.data.Applier.abStats.collectAsState()
-            Text("A/B switches: ${ab.today} today, ${ab.total} in total (${ab.writes} band writes to the dongle's memory). " +
-                "Each switch on the Protocol Max is stored permanently, so use it sparingly.",
+            Text("Compare EQ On/Off: ${ab.today} switches today, ${ab.total} in total (${ab.writes} band writes to the " +
+                "dongle's memory). Each switch on the Protocol Max is stored permanently, so use it sparingly.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 8.dp))
             Text("Quick Settings tile: edit your quick settings and add “BPEQ profile”. Each tap applies the next ★ favorite.\n" +

@@ -45,7 +45,7 @@ class BpeqApp : Application() {
         // A/B left the EQ off (B persists on this firmware): offer to put the profile back, whatever the prompt setting.
         app.bpeq.data.Applier.abFlatFor.value?.let { id ->
             library.get(id)?.let { p ->
-                messages.show("Protocol Max connected with the EQ off (A/B). Put “${p.name}” back?", "Restore") { app.bpeq.data.Applier.applyInBackground(id) }
+                messages.show("Protocol Max connected with the EQ Off (Compare). Turn “${p.name}” back on?", "EQ On") { app.bpeq.data.Applier.applyInBackground(id) }
                 return
             }
         }
