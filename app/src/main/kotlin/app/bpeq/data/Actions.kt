@@ -102,6 +102,26 @@ object Actions {
         }
     }
 
+    /** Downloads a target curve from a link (squig.link with a target, or a curve file) and selects it in Tune. */
+    fun importTargetLink(link: String) {
+        if (_linkBusy.value) return
+        _linkBusy.value = true
+        app.log.info("target link import: $link")
+        app.messages.show("Downloading…")
+        scope.launch {
+            val r = runCatching { withContext(Dispatchers.IO) { LinkImport.importTarget(link, HttpFetch { app.log.info("GET $it") }) } }
+            _linkBusy.value = false
+            r.onSuccess { t ->
+                app.tune.setCustomTarget(t)
+                app.tabRequest.value = Tab.TUNE
+                app.messages.show("Target “${t.name}” loaded")
+            }.onFailure { e ->
+                app.log.warn("target link import failed: ${e.message}")
+                app.messages.show(if (e is ImportException) e.message ?: "Import failed" else "Import failed: ${e.message}")
+            }
+        }
+    }
+
     fun importClipboard(ctx: Context) {
         val clip = ctx.getSystemService(ClipboardManager::class.java).primaryClip
         val text = clip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(ctx)?.toString()

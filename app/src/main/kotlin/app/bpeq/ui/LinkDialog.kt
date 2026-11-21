@@ -23,22 +23,27 @@ import androidx.compose.ui.unit.dp
 import app.bpeq.core.io.LinkImport
 import app.bpeq.data.Actions
 
-/** "Import from link": AutoEQ (GitHub), squig.link share/EQ links, or a link to a filter or measurement file. */
+/**
+ * "Import from link": AutoEQ (GitHub), squig.link share/EQ links, or a link to a filter or measurement file.
+ * With [target], only a target curve is taken from the link (for Tune).
+ */
 @Composable
-fun LinkDialog(onDismiss: () -> Unit) {
+fun LinkDialog(target: Boolean = false, onDismiss: () -> Unit) {
     val ctx = LocalContext.current
     var link by remember {
         val c = ctx.getSystemService(android.content.ClipboardManager::class.java).primaryClip
         val text = if (c != null && c.itemCount > 0) c.getItemAt(0).coerceToText(ctx)?.toString() else null
         mutableStateOf(text?.let(LinkImport::findLink) ?: "")
     }
-    val go = { Actions.importLink(link.trim()); onDismiss() }
+    val go = { if (target) Actions.importTargetLink(link.trim()) else Actions.importLink(link.trim()); onDismiss() }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Import from link") },
+        title = { Text(if (target) "Import target from link" else "Import from link") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("• AutoEQ result on GitHub → a new profile\n• squig.link EQ link → a new profile with graph overlays\n" +
+                Text(if (target) "• squig.link link with a target selected (the target is used, any IEM is ignored)\n" +
+                    "• a link to a target file, e.g. an AutoEQ target CSV on GitHub"
+                else "• AutoEQ result on GitHub → a new profile\n• squig.link EQ link → a new profile with graph overlays\n" +
                     "• squig.link graph link → the IEM (and target) in Tune\n• a link to a filter or measurement file",
                     style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(link, { link = it }, Modifier.fillMaxWidth(), label = { Text("https://…") }, singleLine = true,

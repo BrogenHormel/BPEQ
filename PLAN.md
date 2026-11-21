@@ -72,7 +72,9 @@ Native Android PEQ editor for the CrinEar Protocol Max (USB 3302:43CC, WalkPlay 
   squig.link share= -> Tune (DIR from config.js, "<stem> L/R.txt" averaged, "<name> Target.txt"; phone_book.json for
   display names). graph.hangout.audio returns 403 for data files: reported, not bypassed. autoeq.app is client-side:
   explained. Live test: BPEQ_LIVE=1 ./gradlew :core:test --tests '*LinkImportTest*live*'.
-  Current release: 1.0.5 (versionCode 15).
+- 1.0.6: Tune target from a link (LinkImport.importTarget: squig share=..._Target / eqTarget, or a curve file such as
+  AutoEQ targets/*.csv on GitHub). A target-only squig link in the measurement import points to it.
+  Current release: 1.0.6 (versionCode 16).
 
 ## Next (planned 2026-11-17)
 - Owner is buying a **CrinEar Protocol Micro** (3302:C20F, WalkPlay SchemeNo11) to add multi-device support.

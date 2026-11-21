@@ -62,6 +62,19 @@ class LinkImportTest {
     }
 
     @Test
+    fun `targets from squig links and files`() {
+        val web = FakeWeb(site + mapOf("https://files.example/My%20Target.csv" to "frequency,raw\n" + fr(1.0).replace('\t', ',')))
+        assertEquals("Harman IE 2019 Target", LinkImport.importTarget("https://example.squig.link/?share=Harman_IE_2019_Target", web).name)
+        assertEquals("Harman IE 2019 Target", LinkImport.importTarget("https://example.squig.link/?share=Acme_One_Pro,Harman_IE_2019_Target", web).name)
+        assertEquals("Harman IE 2019 Target", LinkImport.importTarget("https://example.squig.link/?eqModel=Acme_One_Pro&eqTarget=Harman_IE_2019&eqFilters=x", web).name)
+        assertEquals(81.0, LinkImport.importTarget("https://files.example/My%20Target.csv", web).at(1000.0), 0.01)
+        val noTarget = assertFailsWith<ImportException> { LinkImport.importTarget("https://example.squig.link/?share=Acme_One_Pro", web) }
+        assertTrue("no target" in noTarget.message!!)
+        val onlyTarget = assertFailsWith<ImportException> { LinkImport.import("https://example.squig.link/?share=Harman_IE_2019_Target", web) }
+        assertTrue("Import target from a link" in onlyTarget.message!!)
+    }
+
+    @Test
     fun `legacy JSON eqFilters are read`() {
         val bands = LinkImport.decodeEqFilters(Base64.getUrlEncoder().encodeToString("""[[0,0,250,1,-2],{"d":0,"t":"HSQ","f":9000,"q":0.7,"g":3}]""".toByteArray()))
         assertEquals(2, bands.size); assertEquals(FilterType.HIGH_SHELF, bands[1]!!.type)
@@ -112,6 +125,10 @@ class LinkImportTest {
         println("LIVE AutoEQ folder ${a.name}: ${a.import.eq.bands.size} bands, preamp ${a.import.eq.manualPreampDb}")
         val b = LinkImport.import("https://github.com/jaakkopasanen/AutoEq/blob/master/results/crinacle/711%20in-ear/Moondrop%20Aria%20(2021)/Moondrop%20Aria%20(2021)%20ParametricEQ.txt", fetch) as LinkImport.Result.Filters
         assertEquals(a.import.eq.bands.size, b.import.eq.bands.size)
+        val autoEqTarget = LinkImport.importTarget("https://github.com/jaakkopasanen/AutoEq/blob/master/targets/Harman%20in-ear%202019.csv", fetch)
+        println("LIVE AutoEQ target ${autoEqTarget.name} ${autoEqTarget.freqs.size} pts")
+        val squigTarget = LinkImport.importTarget("https://squig.link/?share=Harman_IE_2019_Target", fetch)
+        println("LIVE squig target ${squigTarget.name} ${squigTarget.freqs.size} pts")
         // Crinacle's site refuses downloads by other apps (403); BPEQ reports that rather than working around it.
         val e = assertFailsWith<ImportException> { LinkImport.import("https://graph.hangout.audio/iem/711/?share=SA03", fetch) }
         println("LIVE hangout: ${e.message}")

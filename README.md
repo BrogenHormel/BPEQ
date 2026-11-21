@@ -18,7 +18,8 @@ Unofficial; not affiliated with or endorsed by CrinEar or WalkPlay.
   EQ by Ear JSON. Paste, open a file, *Open with BPEQ*, or Share to BPEQ. Export as Equalizer APO / Peace text.
   **Import from link**: an AutoEQ result on GitHub (file or folder) becomes a profile; a squig.link EQ link becomes a
   profile with the IEM and target as graph overlays; a squig.link graph link loads the IEM (and target) into
-  Auto-tune. Share a link from the browser to BPEQ, or paste it. Sites that refuse downloads by other apps
+  Auto-tune; in Auto-tune a target can also come from a link (a squig.link link with a target selected, or a
+  target file such as an AutoEQ target CSV on GitHub). Share a link from the browser to BPEQ, or paste it. Sites that refuse downloads by other apps
   (graph.hangout.audio) are reported, not worked around.
   Whole-library backup and restore (one JSON file; restore never overwrites).
 - **Auto-tune**: load an IEM frequency response (squig.link / Crinacle / AutoEQ / REW CSV or TXT), pick a target

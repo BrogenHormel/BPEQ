@@ -62,11 +62,42 @@ object LinkImport {
         return s
     }
 
-    fun import(link: String, fetch: Fetch): Result {
+    private fun parseLink(link: String): URI {
         val uri = runCatching { URI(link.trim().replace(" ", "%20")) }.getOrNull()
             ?: throw ImportException("Not a valid link")
         if (uri.scheme?.lowercase() != "https") throw ImportException("Only https links can be imported")
-        val host = uri.host?.lowercase() ?: throw ImportException("Not a valid link")
+        if (uri.host == null) throw ImportException("Not a valid link")
+        return uri
+    }
+
+    private fun isGraphTool(query: Map<String, String>) =
+        listOf("share", "eqFilters", "eqModel", "eq_model", "eqTarget", "eq_target").any { it in query }
+
+    /**
+     * A target curve from a link: the target in a squig.link link (`share=..._Target`, or an EQ link's `eqTarget`),
+     * or a link to a curve file (e.g. an AutoEQ target CSV on GitHub).
+     */
+    fun importTarget(link: String, fetch: Fetch): Curve {
+        val uri = parseLink(link)
+        val query = queryParams(uri.rawQuery)
+        if (isGraphTool(query)) {
+            val site = Site(dataDir(uri, fetch), fetch)
+            val eqTarget = (query["eqTarget"] ?: query["eq_target"])?.let(::shareName)
+            val name = eqTarget?.let { if (it.endsWith(" Target")) it else "$it Target" }
+                ?: query["share"]?.split(',')?.map(::shareName)?.firstOrNull { it.endsWith(" Target") }
+                ?: throw ImportException("That link has no target in it. Select a target on the site, then share the link again.")
+            return site.target(name) ?: eqTarget?.let(site::target)
+                ?: throw ImportException("Couldn't find the target \"$name\" on ${uri.host}")
+        }
+        return when (val r = import(link, fetch)) {
+            is Result.Measurement -> r.measurement
+            is Result.Filters -> throw ImportException("That link has EQ filters, not a target curve")
+        }
+    }
+
+    fun import(link: String, fetch: Fetch): Result {
+        val uri = parseLink(link)
+        val host = uri.host.lowercase()
         val query = queryParams(uri.rawQuery)
         return when {
             host == "autoeq.app" || host.endsWith(".autoeq.app") -> throw ImportException(
@@ -74,7 +105,7 @@ object LinkImport {
                     "\"Equalizer APO ParametricEQ\", copy the filters and use Paste from clipboard. " +
                     "Links to AutoEQ results on GitHub work directly.")
             host == "github.com" -> gitHub(uri, fetch)
-            "share" in query || "eqFilters" in query || "eqModel" in query || "eq_model" in query -> graphTool(uri, query, fetch)
+            isGraphTool(query) -> graphTool(uri, query, fetch)
             else -> plainFile(uri, fetch)
         }
     }
@@ -188,7 +219,7 @@ object LinkImport {
 
         val names = (query["share"] ?: query["eqModel"] ?: query["eq_model"] ?: "").split(',').map(::shareName).filter { it.isNotEmpty() }
         val (targets, phones) = names.partition { it.endsWith(" Target") }
-        if (phones.isEmpty()) throw ImportException("The link has no IEM in it (only targets)")
+        if (phones.isEmpty()) throw ImportException("That link only has a target in it. To use it, tap \"Import target from a link\" in Tune.")
         if (phones.size > 1) notes += "The link has ${phones.size} IEMs; loaded the first, ${phones[0]}"
         val stem = phones[0]
         val meas = site.measurement(stem, stem)

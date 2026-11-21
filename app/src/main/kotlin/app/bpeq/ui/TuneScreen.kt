@@ -65,6 +65,8 @@ fun TuneScreen(modifier: Modifier = Modifier, onOpenEditor: () -> Unit) {
     }
     var linkDialog by remember { mutableStateOf(false) }
     if (linkDialog) LinkDialog { linkDialog = false }
+    var targetLinkDialog by remember { mutableStateOf(false) }
+    if (targetLinkDialog) LinkDialog(target = true) { targetLinkDialog = false }
     val types = arrayOf("text/*", "application/octet-stream", "application/vnd.ms-excel")
 
     val grid = FreqGrid.DISPLAY
@@ -115,6 +117,7 @@ fun TuneScreen(modifier: Modifier = Modifier, onOpenEditor: () -> Unit) {
             }
             st.customTarget?.let { Text("Custom: ${it.name}", color = Palette.good, style = MaterialTheme.typography.bodyMedium) }
             TextButton({ pickTarget.launch(types) }) { Text("Load a custom target file") }
+            TextButton({ targetLinkDialog = true }) { Text("Import target from a link") }
         }
 
         Section("3. Settings") {
