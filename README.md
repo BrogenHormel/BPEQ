@@ -35,11 +35,13 @@ Unofficial; not affiliated with or endorsed by CrinEar or WalkPlay.
   predicted result for auto-tuned profiles, and any other profile for comparison.
 - **Tone sliders**: bass, treble tilt and ear gain on top of any profile, blended to stay within 10 bands.
 - **Themes**: System (follows the phone), Light, Dark, or AMOLED (true black), in Device → Settings.
+- **Back** on the EQ tab (button or gesture) goes to the Library.
 - **Plug-in prompt** ("Apply <last profile>?"), a **Quick Settings tile** (each tap applies the next favorite) and a
   **home-screen widget** with up to four favorites.
 - **Compare EQ On / Off, with wear limits**: a toggle above the send bar switches the profile on the dongle between
-  EQ On and EQ Off. EQ Off sets every band flat but keeps the profile's preamp, so the volume matches and you hear only
-  the EQ. On the Protocol Max (firmware 1.4) every band write lands in permanent memory, even without a save command
+  EQ On and EQ Off. EQ Off sets every band flat and sets the preamp so it sounds as loud as the EQ (K-weighted
+  loudness, as broadcast meters measure it), so you hear the tone change, not a volume change. An EQ Off level − / +
+  (remembered per profile) fine-tunes the match by ear. On the Protocol Max (firmware 1.4) every band write lands in permanent memory, even without a save command
   (see `docs/HARDWARE.md`), so each switch writes only the bands that change, skips the save command, and is counted
   (Device tab). After 20 switches in a day BPEQ asks before allowing 20 more. If the dongle is unplugged on EQ Off,
   BPEQ offers to turn the profile back on when it's connected again.

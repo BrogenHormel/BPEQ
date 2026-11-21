@@ -78,6 +78,38 @@ object Planner {
         return max(Response.coeffs(coeffs, SCAN).max(), Response.coeffs(coeffs, centres).max())
     }
 
+    private val LOUDNESS_GRID = FreqGrid.log(240)
+
+    /**
+     * K-weighting power (ITU-R BS.1770: ~+4 dB high shelf above ~1.7 kHz and a high-pass below ~60 Hz), the weighting
+     * loudness meters use for how loud something sounds.
+     */
+    private val K_WEIGHT: DoubleArray = DoubleArray(LOUDNESS_GRID.size) { i ->
+        val f = LOUDNESS_GRID.freqs[i]
+        val shelfDb = 4.0 / (1 + (1681.0 / f).let { it * it })           // smooth +4 dB above ~1.7 kHz
+        val hp = (f / 38.0).let { r -> r * r * r * r / (1 + r * r * r * r) } // 2nd-order high-pass at ~38 Hz (power)
+        Math.pow(10.0, shelfDb / 10) * hp
+    }
+
+    /**
+     * How much louder (dB, negative = quieter) the EQ in [regs] makes pink noise sound, K-weighted, preamp excluded.
+     * Used to set the "EQ Off" preamp so switching changes the tone, not the loudness.
+     */
+    fun loudnessDb(regs: List<Registers>): Double {
+        val coeffs = regs.mapNotNull { r -> runCatching { MaxProtocol.deviceCoeffs(r) }.getOrNull() }
+        val g = Response.coeffs(coeffs, LOUDNESS_GRID)
+        var num = 0.0; var den = 0.0
+        for (i in g.indices) { num += K_WEIGHT[i] * Math.pow(10.0, g[i] / 10); den += K_WEIGHT[i] }
+        return 10 * Math.log10(num / den)
+    }
+
+    /**
+     * Preamp for "EQ Off" (all bands flat) that sounds as loud as [plan] does with its EQ: its preamp plus the EQ's
+     * loudness change, in whole dB like every device preamp, within the device range.
+     */
+    fun loudnessMatchedFlatPreamp(plan: WritePlan): Int =
+        Math.round(plan.preampDb + loudnessDb(plan.registers)).toInt().coerceIn(MaxLimits.PREAMP_MIN, MaxLimits.PREAMP_MAX)
+
     /** Auto preamp: enough whole-dB attenuation that the peak stays at or below 0 dB. Never positive. */
     fun autoPreamp(regs: List<Registers>): Int {
         val peak = peakDb(regs)

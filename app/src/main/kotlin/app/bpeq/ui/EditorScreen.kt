@@ -254,7 +254,12 @@ fun SendBar(profileId: String, canSend: Boolean) {
     val sent = matches || (comparingOff && onDeviceEq?.sameSettings(profile.working) == true)
     Surface(color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
       Column {
-        if (canCompare) EqOnOffToggle(profile.id, Planner.plan(onDeviceEq!!).preampDb, enabled = status.canTalk || status is DeviceStatus.Busy)
+        if (canCompare) {
+            val onPlan = remember(onDeviceEq) { Planner.plan(onDeviceEq!!).plan }
+            val trims by Applier.offTrim.collectAsState()
+            if (onPlan != null) EqOnOffToggle(profile.id, onPlan.preampDb, remember(onPlan, trims) { Applier.offPreamp(onPlan, profile.id) },
+                trims[profile.id] ?: 0, enabled = status.canTalk || status is DeviceStatus.Busy)
+        }
         Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Row(Modifier.weight(1f).background(color.copy(alpha = 0.15f), RoundedCornerShape(16.dp)).padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically) {

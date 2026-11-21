@@ -3,6 +3,7 @@ package app.bpeq
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.padding
@@ -69,6 +70,9 @@ class MainActivity : ComponentActivity() {
             }
             BpeqTheme(themeMode) {
                 var tab by rememberSaveable { mutableStateOf(Tab.EDITOR) }
+                // Back (button or gesture) on the EQ tab goes to the Library instead of leaving the app.
+                // Open dialogs and menus handle back themselves first.
+                BackHandler(enabled = tab == Tab.EDITOR) { tab = Tab.LIBRARY }
                 val snackbar = remember { SnackbarHostState() }
                 LaunchedEffect(Unit) { requestedTab.collect { t -> if (t != null) { tab = t; requestedTab.value = null } } }
                 LaunchedEffect(Unit) { BpeqApp.instance.tabRequest.collect { t -> if (t != null) { tab = t; BpeqApp.instance.tabRequest.value = null } } }

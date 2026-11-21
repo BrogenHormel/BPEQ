@@ -82,7 +82,11 @@ Native Android PEQ editor for the CrinEar Protocol Max (USB 3302:43CC, WalkPlay 
 - 1.0.9: themes (ui/Theme.kt ThemeMode + ThemePrefs): System / Light / Dark / AMOLED, chosen in Device -> Settings.
   Palette colours are snapshot state switched by BpeqTheme (dark/light sets); node labels use onPrimary; system bar
   icons follow the app theme. The home-screen widget stays dark.
-  Current release: 1.0.9 (versionCode 19).
+- 1.0.10: Back on the EQ tab -> Library (BackHandler). EQ Off preamp loudness-matched: Planner.loudnessDb
+  (K-weighted pink-noise power of the device EQ) + per-profile "EQ Off level" trim (-6..+6 dB, a preamp-only write
+  while off); each switch logs both preamps. Owner reported a large volume jump on the SA6 profile, whose EQ measures
+  -0.2 dB: if it persists, check whether the firmware skips the preamp when all bands are flat.
+  Current release: 1.0.10 (versionCode 20).
 
 ## Next (planned 2026-11-17)
 - Owner is buying a **CrinEar Protocol Micro** (3302:C20F, WalkPlay SchemeNo11) to add multi-device support.

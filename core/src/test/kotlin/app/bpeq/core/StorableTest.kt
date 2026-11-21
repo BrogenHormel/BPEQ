@@ -106,4 +106,23 @@ class StorableTest {
             assertTrue(manual.warnings.isEmpty(), manual.warnings.toString())
         }
     }
+
+    @Test
+    fun `EQ Off preamp matches loudness`() {
+        fun plan(vararg b: Band, preamp: Double? = null) = Planner.plan(if (preamp == null) Eq(b.toList()) else Eq(b.toList(), PreampMode.MANUAL, preamp)).plan!!
+        val flat = plan()
+        assertEquals(0.0, Planner.loudnessDb(flat.registers), 1e-6)
+        // A broad -6 dB cut over the midrange: EQ On is quieter, so EQ Off goes down too.
+        val cut = plan(Band(FilterType.PEAK, 1000.0, -6.0, 0.3), preamp = 0.0)
+        val lc = Planner.loudnessDb(cut.registers)
+        println("broad cut loudness $lc dB, flat preamp ${Planner.loudnessMatchedFlatPreamp(cut)}")
+        assertTrue(lc < -1.0 && lc > -6.0, "$lc")
+        assertEquals(Math.round(lc).toInt(), Planner.loudnessMatchedFlatPreamp(cut))
+        // A +6 dB bass shelf with auto preamp -6: louder than flat at -6, but much less than 6 dB louder.
+        val bass = plan(Band(FilterType.LOW_SHELF, 105.0, 6.0, 0.7))
+        val lb = Planner.loudnessDb(bass.registers)
+        println("bass shelf loudness $lb dB, preamp ${bass.preampDb}, flat preamp ${Planner.loudnessMatchedFlatPreamp(bass)}")
+        assertTrue(lb in 0.3..3.0, "$lb")
+        assertTrue(Planner.loudnessMatchedFlatPreamp(bass) > bass.preampDb)
+    }
 }

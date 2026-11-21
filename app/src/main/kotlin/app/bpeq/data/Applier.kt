@@ -116,8 +116,40 @@ object Applier {
     /** A full profile write replaced whatever A/B left on the dongle. */
     fun endAbState() = setFlat(null)
 
-    /** B = every band flat with A's preamp, so loudness stays comparable. */
-    private fun flatPlan(a: WritePlan) = WritePlan(List(MaxLimits.BANDS) { MaxLimits.flatRegisters(it) }, a.preampDb)
+    private val _offTrim = MutableStateFlow<Map<String, Int>>(emptyMap())
+    /** Per-profile EQ Off level adjustment (dB) on top of the loudness match, set by ear. */
+    val offTrim: StateFlow<Map<String, Int>> = _offTrim.asStateFlow()
+
+    fun trimFor(id: String): Int = _offTrim.value[id] ?: prefs.getInt(KEY_AB_TRIM + id, 0).also { v ->
+        if (v != 0) _offTrim.value = _offTrim.value + (id to v)
+    }
+
+    /** EQ Off preamp for [a]: loudness-matched (Planner.loudnessMatchedFlatPreamp) plus the profile's trim. */
+    fun offPreamp(a: WritePlan, id: String): Int =
+        (Planner.loudnessMatchedFlatPreamp(a) + trimFor(id)).coerceIn(MaxLimits.PREAMP_MIN, MaxLimits.PREAMP_MAX)
+
+    /** EQ Off = every band flat, preamp set to sound as loud as the EQ does. */
+    private fun flatPlan(a: WritePlan, id: String) = WritePlan(List(MaxLimits.BANDS) { MaxLimits.flatRegisters(it) }, offPreamp(a, id))
+
+    /**
+     * Changes the EQ Off level of [profileId] by [deltaDb]. If the dongle is on EQ Off for it, the new preamp is written
+     * right away (a single preamp write; bands are unchanged). Returns a message, or null if nothing changed.
+     */
+    suspend fun adjustOffLevel(profileId: String, deltaDb: Int): String? {
+        val (id, eq) = app.library.onDevice.value ?: return null
+        if (id != profileId) return null
+        val a = Planner.plan(eq).plan ?: return null
+        val before = offPreamp(a, id)
+        val trim = (trimFor(id) + deltaDb).coerceIn(-TRIM_MAX, TRIM_MAX)
+        _offTrim.value = _offTrim.value + (id to trim)
+        prefs.edit().putInt(KEY_AB_TRIM + id, trim).apply()
+        val after = offPreamp(a, id)
+        if (after == before) return if (after == MaxLimits.PREAMP_MAX) "EQ Off is already at the loudest preamp (0 dB)" else null
+        if (_abFlatFor.value != id) return null
+        val (ok, writes) = app.devices.writeAb(flatPlan(a, id), "EQ Off level")
+        if (writes > 0) { refreshStats(); val s = _abStats.value; prefs.edit().putInt(KEY_AB_WRITES, s.writes + writes).apply(); refreshStats() }
+        return if (ok) null else "Changing the EQ Off level failed; see the Log"
+    }
 
     /**
      * Switches between A (the profile on the dongle) and B (EQ off, same preamp). Only for the profile the library
@@ -128,7 +160,9 @@ object Applier {
         if (id != profileId) return "Send this profile to the dongle first"
         val a = Planner.plan(eq).plan ?: return "This profile can't be sent as is"
         val toFlat = _abFlatFor.value != id
-        val (ok, writes) = app.devices.writeAb(if (toFlat) flatPlan(a) else a, if (toFlat) "EQ Off" else "EQ On")
+        app.log.info("compare: EQ On preamp ${a.preampDb} dB; EQ Off preamp ${offPreamp(a, id)} dB (loudness match " +
+            "${Planner.loudnessMatchedFlatPreamp(a)} dB, EQ loudness ${"%.2f".format(Planner.loudnessDb(a.registers))} dB, trim ${trimFor(id)} dB)")
+        val (ok, writes) = app.devices.writeAb(if (toFlat) flatPlan(a, id) else a, if (toFlat) "EQ Off" else "EQ On")
         if (writes > 0) count(writes)
         if (!ok) return "Switching the EQ ${if (toFlat) "off" else "on"} failed; see the Log"
         setFlat(if (toFlat) id else null)
@@ -158,4 +192,6 @@ object Applier {
     private const val KEY_AB_ALLOWANCE = "ab_allowance"
     private const val KEY_AB_TOTAL = "ab_total"
     private const val KEY_AB_WRITES = "ab_writes"
+    private const val KEY_AB_TRIM = "ab_trim_"
+    private const val TRIM_MAX = 6
 }
